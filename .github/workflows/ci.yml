@@ -9,7 +9,7 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     env:
-      ET_DATA_DIR: ${{ runner.temp }}/et-data
+      ET_DATA_DIR: /tmp/et-data
       ET_SCHEDULER: 'off'
     steps:
       - uses: actions/checkout@v4
