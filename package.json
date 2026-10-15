@@ -12,7 +12,8 @@
     "ingest": "tsx scripts/ingest.ts",
     "worker": "tsx scripts/worker.ts",
     "db:migrate": "tsx scripts/migrate.ts",
-    "lineage": "tsx scripts/lineage.ts"
+    "lineage": "tsx scripts/lineage.ts",
+    "import:remote": "tsx scripts/import-remote.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "0.5.10",
