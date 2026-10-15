@@ -1,5 +1,11 @@
 # Private user-supplied corpus: never publish by default
 /UAP_*
+# Loose copies of research-package members dropped at the project root
+/*_v08.csv
+/*_v08.json
+/*.txt
+/*.xlsx
+/*.zip
 /private/
 /.local/
 /.env*

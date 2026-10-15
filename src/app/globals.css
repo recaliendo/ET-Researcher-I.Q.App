@@ -57,6 +57,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .live-dot{width:7px;height:7px;border-radius:50%;background:#53c08f;box-shadow:0 0 0 3px rgba(83,192,143,.18);display:inline-block}
 .nav-label{font-size:.66rem;letter-spacing:.14em;color:var(--nav-muted);margin:var(--space-2) var(--space-2)}
 .sidebar nav{display:flex;flex-direction:column;gap:2px}
+.nav-separate{margin-top:var(--space-4);padding-top:var(--space-3);border-top:1px solid rgba(255,255,255,.08)}
 .sidebar nav a,.sidebar-bottom>a{display:flex;align-items:center;gap:var(--space-3);padding:9px var(--space-3);border-radius:var(--radius-sm);color:var(--nav-ink);text-decoration:none;font-size:var(--text-sm)}
 .sidebar nav a:hover,.sidebar-bottom>a:hover{background:rgba(255,255,255,.05)}
 .sidebar nav a.active{background:var(--nav-active);color:#fff}
@@ -301,6 +302,17 @@ textarea{width:100%;min-height:90px;resize:vertical}
 .roadmap{padding-left:1.2rem;font-size:var(--text-sm)}.roadmap li{margin:var(--space-2) 0}
 .pathways{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4)}
 .pathways>div{background:var(--surface-2);border-radius:var(--radius-sm);padding:var(--space-4)}.pathways p{font-size:var(--text-sm);margin:0}
+
+/* Roadmap & Mars track */
+.roadmap-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:var(--space-3)}
+.phase{border:1px solid var(--line);border-radius:var(--radius-sm);padding:var(--space-4);background:var(--surface)}
+.phase.done{border-color:var(--green);background:var(--green-soft)}
+.phase h3{margin:var(--space-2) 0}.phase p{font-size:var(--text-sm);margin:0 0 var(--space-2)}
+.phase .acceptance{color:var(--ink-2)}
+.ladder{display:flex;flex-direction:column;gap:var(--space-2)}
+.ladder>div{display:grid;grid-template-columns:minmax(160px,240px) minmax(0,1fr);gap:var(--space-3);padding:var(--space-3);border-left:3px solid var(--line-strong);background:var(--surface-2);border-radius:0 var(--radius-sm) var(--radius-sm) 0;font-size:var(--text-sm)}
+.ladder>div.proposed{border-left-color:var(--blue)}.ladder>div.none{border-left-color:var(--amber)}
+@media (max-width:620px){.ladder>div{grid-template-columns:1fr}}
 
 /* Operations */
 .provider-controls{display:flex;flex-direction:column;gap:var(--space-2);margin-top:var(--space-3)}

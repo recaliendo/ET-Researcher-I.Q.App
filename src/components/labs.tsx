@@ -23,9 +23,9 @@ export function Psychology({data}:{data:Snapshot}){
   <SectionHeader label="RESEARCH / PSYCHOLOGY & PERCEPTION" title="How people see, remember and report." description="Perception and memory science applied to testimony as research variables, never as a diagnosis of any witness."/>
   <Note>Identifying a cognitive mechanism that <em>could</em> affect an account does not show that it <em>did</em>. Each theory below names the record a researcher would need before applying it to a real case.</Note>
   <div className="lab-layout">
-   <nav className="theory-index" aria-label="Theories">{theories.map(x=><button key={x.id} className={x.id===open?'selected':''} aria-pressed={x.id===open} onClick={()=>setOpen(x.id)}><span>{x.psy.join(' · ')}</span>{x.name}</button>)}</nav>
+   <nav className="theory-index" aria-label="Theories">{theories.map(x=><button key={x.id} className={x.id===open?'selected':''} aria-pressed={x.id===open} onClick={()=>setOpen(x.id)}><span>{x.psy.join(' · ')||'Source reference'}</span>{x.name}</button>)}</nav>
    <article className="panel theory-detail">
-    <div className="eyebrow">{theory.psy.join(' · ')}</div><h2>{theory.name}</h2>
+    <div className="eyebrow">{theory.psy.join(' · ')||'SOURCE REFERENCE · NOT YET CODED'}</div><h2>{theory.name}</h2>
     <p className="large-text">{theory.plain}</p>
     <div className="theory-grid">
      <section><h3>Scientific context</h3><p>{theory.context}</p></section>
@@ -34,7 +34,7 @@ export function Psychology({data}:{data:Snapshot}){
      <section><h3>Limits on application</h3><p>{theory.limits}</p></section>
     </div>
     <h3>Original studies</h3>{theory.references.map(r=><p className="reference" key={r.citation}>{r.citation} {r.doi&&<SourceLink href={'https://doi.org/'+r.doi}>doi:{r.doi}</SourceLink>}</p>)}
-    <h3>Project codebook mapping</h3>{map.length?map.map(r=><div className="citation" key={r.TheoryID}><strong>{r.TheoryID} · {r['Source principle']}</strong><p>Construct: {r['Potential measurement construct']}. Extract: {r['Data to extract']}.</p><p className="muted">Guardrail: {r['Validity guardrail']}</p></div>):<p className="muted">Sign in to view the private project codebook mapping.</p>}
+    <h3>Project codebook mapping</h3>{map.length?map.map(r=><div className="citation" key={r.TheoryID}><strong>{r.TheoryID} · {r['Source principle']}</strong><p>Construct: {r['Potential measurement construct']}. Extract: {r['Data to extract']}.</p><p className="muted">Guardrail: {r['Validity guardrail']}</p></div>):<p className="muted">{theory.psy.length?'Sign in to view the private project codebook mapping.':'Not yet in the project codebook. Adding it needs a PSY code, measurement construct and validity guardrail.'}</p>}
     <h3>Examples from the dataset</h3>{linked.length?<p>{linked.length} coded claims are tagged with this theory, but their first-statement fields are not yet extracted, so no source-supported example can be shown. <Link href="/cases">Inspect the claims</Link></p>:<p className="muted">No source-supported example in the accessible corpus.</p>}
    </article>
   </div>

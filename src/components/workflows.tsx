@@ -5,6 +5,7 @@ import {Bell,Bot,Download,RefreshCw,Send,X} from 'lucide-react';
 import type {FeedItem,Snapshot} from './observatory';
 import {Badge,Empty,Fields,More,Note,Panel,RecordList,SectionHeader,SourceLink,download,post} from './ui';
 import {taskStates,type ResearchRow} from '@/lib/research-types';
+import {roadmap,recruitment,guardrails,mars} from '@/lib/handoff';
 
 const date=(s?:string|null)=>s?new Date(s).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'Not stated';
 const time=(s?:string|null)=>s?new Date(s).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}):'Never';
@@ -87,7 +88,7 @@ function FindingCards({rows,title,status,body,qualify,pointer,next,link}:{rows:R
 type Task={id:string;incident_id:string;title:string;purpose:string;priority:string;state:string;metadata:Record<string,unknown>;updated_at:string};
 const rank=(p:string)=>/critical|^p?1|high/i.test(p)?0:/medium|^p?2|important/i.test(p)?1:2;
 export function Priorities({data,reload}:{data:Snapshot;reload:()=>void}){
- const tasks=data.tasks as Task[];const [focus,setFocus]=useState(''),[view,setView]=useState('board'),[err,setErr]=useState('');
+ const tasks=data.tasks as Task[];const [focus,setFocus]=useState(''),[view,setView]=useState('roadmap'),[err,setErr]=useState('');
  useEffect(()=>{setFocus(param('case')||'');},[]);
  const events=Object.fromEntries((data.tables.Events||[]).map(e=>[e.EventID,e]));const gaps=data.tables.Unresolved_Gaps_v08||[];
  const shown=useMemo(()=>tasks.filter(x=>!focus||x.incident_id===focus).sort((a,b)=>rank(a.priority)-rank(b.priority)||a.id.localeCompare(b.id)),[tasks,focus]);
@@ -95,10 +96,18 @@ export function Priorities({data,reload}:{data:Snapshot;reload:()=>void}){
  return <>
   <SectionHeader label="RESEARCH / PRIORITIES" title="What to investigate next." description="An evidence-gap backlog. Each task names the missing proof-chain link it could close. Priority is a workflow judgement, never a probability that a case is extraterrestrial."/>
   {err&&<Note tone="warning">{err}</Note>}
-  <div className="toolbar"><div className="segmented">{[['board','Workflow board'],['list','Ranked list'],['gaps','Evidence gaps']].map(([id,l])=><button key={id} className={view===id?'selected':''} onClick={()=>setView(id)}>{l}</button>)}</div>{focus&&<button className="chip selected" onClick={()=>setFocus('')}>Case {focus} ×</button>}</div>
-  {!tasks.length&&view!=='gaps'?<Empty>Sign in to view and manage the research backlog.</Empty>:view==='board'?<div className="board">{taskStates.map(s=><section key={s} className="board-column" aria-label={s}><h2>{s} <span>{shown.filter(x=>x.state===s).length}</span></h2>{shown.filter(x=>x.state===s).map(x=><TaskCard key={x.id} task={x} event={events[x.incident_id]} role={data.role} move={move}/>)}</section>)}</div>
+  <div className="toolbar"><div className="segmented">{[['roadmap','Research roadmap'],['board','Workflow board'],['list','Ranked list'],['gaps','Evidence gaps']].map(([id,l])=><button key={id} className={view===id?'selected':''} onClick={()=>setView(id)}>{l}</button>)}</div>{focus&&<button className="chip selected" onClick={()=>setFocus('')}>Case {focus} ×</button>}</div>
+  {view==='roadmap'?<Roadmap gaps={gaps}/>:!tasks.length&&view!=='gaps'?<Empty>Sign in to view and manage the research backlog.</Empty>:view==='board'?<div className="board">{taskStates.map(s=><section key={s} className="board-column" aria-label={s}><h2>{s} <span>{shown.filter(x=>x.state===s).length}</span></h2>{shown.filter(x=>x.state===s).map(x=><TaskCard key={x.id} task={x} event={events[x.incident_id]} role={data.role} move={move}/>)}</section>)}</div>
   :view==='list'?<div className="task-list">{shown.map(x=><TaskCard key={x.id} task={x} event={events[x.incident_id]} role={data.role} move={move} wide/>)}</div>
   :<FindingCards rows={gaps} title="Missing item" status="Priority" body="Consequence" qualify="Interpretation guardrail" pointer="GapID" next="Exact next retrieval"/>}
+ </>;
+}
+function Roadmap({gaps}:{gaps:ResearchRow[]}){
+ const gapTitle=(id:string)=>gaps.find(g=>g.GapID===id)?.['Missing item'];
+ return <>
+  <Note>Validate the existing evidence before expanding the catalog of famous cases. Each phase has an acceptance requirement that must be met before the next one is claimed.</Note>
+  <div className="roadmap-grid">{roadmap.map(p=><article key={p.phase} className={'phase '+(p.done?'done':'')}><div className="feed-meta"><b>{p.phase}</b>{p.done?<Badge tone="green">Completed</Badge>:<Badge>Not started</Badge>}</div><h3>{p.title}</h3><p>{p.work}</p><p className="acceptance"><b>Acceptance:</b> {p.acceptance}</p>{p.gaps&&<p className="muted small">Closes: {p.gaps.map(g=><span key={g} title={gapTitle(g)}>{g} </span>)}</p>}</article>)}</div>
+  <Panel title="Recruitment targets" eyebrow="PROTOCOL · NOT QUOTAS"><div className="stat-grid">{recruitment.map(r=><div key={r.unit}><span>{r.unit}</span><strong>{r.target}</strong><span>{r.note}</span></div>)}</div><Note tone="warning">Synthetic or invented observations must never be used to meet these targets. Current eligible RQ1 sample: 0.</Note></Panel>
  </>;
 }
 function TaskCard({task:x,event,role,move,wide}:{task:Task;event?:ResearchRow;role:string;move:(id:string,s:string)=>void;wide?:boolean}){
@@ -121,7 +130,7 @@ export function Methodology({data}:{data:Snapshot}){
   <SectionHeader label="RESEARCH / METHODOLOGY & SOURCES" title="How we know what we claim." description="Objectives, research questions, lineage, criteria, limitations and every imported record, so any claim can be traced to its source and its qualifications." action={<a className="button" href="/api/export"><Download size={15}/> Export accessible data</a>}/>
   {record&&<Panel title="Requested source record" eyebrow={record}>{found?<Fields row={found}/>:<Empty>Record unavailable in this view. It may be private.</Empty>}</Panel>}
   <div className="two-columns"><Panel title="Project objectives" eyebrow="WHY THIS EXISTS"><ul className="plain-list"><li>Separate what is established, disputed, unresolved and insufficiently documented.</li><li>Test whether independent testimony predicts authenticated objective corroboration (RQ1, currently blocked).</li><li>Treat perception and memory science as measurable research variables.</li><li>Keep instrument evidence and recovered-material provenance as separate tracks.</li><li>Prioritize the specific records that could change a conclusion.</li></ul></Panel>
-   <Panel title="Integrity rules" eyebrow="NON-NEGOTIABLE"><ul className="plain-list rules">{['Unknown evidence is not negative evidence.','An unexplained incident is not automatically extraterrestrial.','An official document confirms what the institution recorded, not necessarily the underlying assertion.','Witness rank, status or clearance is not a numerical truth prior.','Multiple witnesses to one incident are not automatically independent observations.','Sensor corroboration and recovered-material provenance are separate tracks.','Unusual laboratory composition does not establish non-human manufacture.','Zero verified cases in a limited corpus is not proof of worldwide absence.','Statistical significance is not causation or extraterrestrial authentication.','Never invent p-values, records, provenance, access, reliability or replication.'].map(r=><li key={r}>{r}</li>)}</ul></Panel></div>
+   <Panel title="Integrity rules" eyebrow="NON-NEGOTIABLE"><ul className="plain-list rules">{['Unknown evidence is not negative evidence.','An unexplained incident is not automatically extraterrestrial.','An official document confirms what the institution recorded, not necessarily the underlying assertion.','Witness rank, status or clearance is not a numerical truth prior.','Multiple witnesses to one incident are not automatically independent observations.','Sensor corroboration and recovered-material provenance are separate tracks.','Unusual laboratory composition does not establish non-human manufacture.','Zero verified cases in a limited corpus is not proof of worldwide absence.','Statistical significance is not causation or extraterrestrial authentication.','Never invent p-values, records, provenance, access, reliability or replication.',...guardrails].map(r=><li key={r}>{r}</li>)}</ul></Panel></div>
   <Panel title="Research questions" eyebrow="PREDEFINED"><div className="table-wrap"><table><thead><tr><th>ID</th><th>Question</th><th>State</th><th>Key limitation</th></tr></thead><tbody>{(t.RQ_Outcomes_v08||[]).map(r=><tr key={r.Question}><td>{r.Question}</td><td>{r['Predefined question']}</td><td>{r.State}</td><td>{r['Key limitation']}</td></tr>)}</tbody></table></div></Panel>
   <Panel title="Version lineage & source ingestion manifest" eyebrow="IMPORTS · CHECKSUMS"><div id="lineage"/><Note>v0.8 is the integrated baseline. It incorporates the accessible v07 Deep Research narrative but is <b>not</b> a verified byte-level import of the unavailable v07 XLSX/ZIP. Earlier versions are preserved for lineage and add no independent cases.</Note>
    {data.imports.length?<div className="table-wrap"><table><thead><tr><th>File</th><th>Version</th><th>Status</th><th>Records</th><th>SHA-256</th></tr></thead><tbody>{data.imports.map(i=><tr key={i.id}><td>{i.filename}</td><td>{i.version}</td><td>{i.status}</td><td>{i.record_count}</td><td><code>{String(i.sha256).slice(0,16)}…</code></td></tr>)}</tbody></table></div>:<Empty>The ingestion manifest is visible to signed-in researchers.</Empty>}
@@ -171,4 +180,16 @@ export function Operations({data,reload}:{data:Snapshot;reload:()=>void}){
 function ProviderControl({p,reload}:{p:Snapshot['providers'][number];reload:()=>void}){
  const [enabled,setEnabled]=useState(p.enabled),[cadence,setCadence]=useState(p.cadence_minutes);
  return <form className="provider-control" onSubmit={async e=>{e.preventDefault();await post('provider',{id:p.id,enabled,cadence});reload();}}><b>{p.name}</b><label><input type="checkbox" checked={enabled} onChange={e=>setEnabled(e.target.checked)}/> Enabled</label><label>Every <input type="number" min="60" max="10080" step="60" value={cadence} onChange={e=>setCadence(+e.target.value)}/> min</label><button className="button">Save</button></form>;
+}
+
+/* ───────────── Separate science track: Mars & abiogenesis ───────────── */
+export function MarsTrack(){
+ return <>
+  <SectionHeader label="SEPARATE SCIENCE TRACK / MARS & ABIOGENESIS" title="Does life emerge when conditions allow?" description="A distinct research question about planetary chemistry. Nothing on this page is UAP evidence, and nothing from the UAP corpus is used here."/>
+  <Note tone="warning"><strong>Scope boundary (REQ025).</strong> Mars-abiogenesis work is never mixed into UAP event counts, models or extraterrestrial attribution. The v08 archive contains <strong>no</strong> Mars simulation package, reaction-network output, measurement dataset or laboratory report, so this page records scope and plans only.</Note>
+  <Panel title="Governing question" eyebrow="RESEARCH PROBLEM"><p className="large-text">{mars.question}</p></Panel>
+  <Panel title="What exists at each level of evidence" eyebrow="STATUS · 15 OCTOBER 2026"><div className="ladder">{mars.ladder.map(l=><div key={l.level} className={/Defined/.test(l.status)?'proposed':'none'}><b>{l.level}</b><span>{l.status}</span></div>)}</div><p className="muted small">Mathematical feasibility, simulation, existing measurements, proposed experiments and completed laboratory findings are kept separate. A simulation is never presented as a laboratory discovery.</p></Panel>
+  <div className="two-columns"><Panel title="Planned research sequence" eyebrow="FROM PROJECT CONVERSATIONS"><ol className="roadmap">{mars.sequence.map(x=><li key={x.step}><b>{x.step}.</b> {x.detail} <Badge>Planned · no preserved output</Badge></li>)}</ol></Panel>
+   <Panel title="Next decisive milestones" eyebrow="OPEN REQUIREMENTS"><ul className="plain-list">{mars.open.map(x=><li key={x}>{x}</li>)}</ul><Note>No biological origin or new discovery may be claimed without discriminating evidence.</Note></Panel></div>
+ </>;
 }
