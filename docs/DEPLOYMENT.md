@@ -30,11 +30,13 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 1. Open https://dashboard.render.com/blueprint/new?repo=https://github.com/recaliendo/ET-Researcher-I.Q.App, sign in, connect GitHub if asked, review the two resources and their monthly cost, and click **Apply**.
 2. Wait for the first deploy to go live, then open `https://<service>.onrender.com/api/health`.
-3. One-time private import: in the database's **Networking** settings add your current IP to the access-control list, copy the **External Database URL**, and from the project folder run:
+3. One-time private import: in the database's **Networking** settings add your current IP (`/32`) to the access-control list, copy the **External Database URL**, and from the project folder run:
 
 ```bash
-DATABASE_URL="<external database URL>?sslmode=require" pnpm import
+pnpm import:remote
 ```
+
+It prompts for the URL with hidden input (paste once; nothing appears), adds `sslmode=require`, tolerates an accidental double paste, never prints credentials, and finishes with `SUCCESS: 63 files verified…`. Over the internet it takes a few minutes. The pg SSL-mode deprecation warning is harmless. Check the result without signing in: `/api/health` reports aggregate counts (expect 63 imports, 637 records).
 
 4. Remove your IP from the access-control list again.
 5. In the web service's **Environment** tab, copy `ADMIN_TOKEN`; on the site, click the sign-in button (top right) and paste it.
