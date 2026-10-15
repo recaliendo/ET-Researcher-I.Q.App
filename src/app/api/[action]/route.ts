@@ -13,7 +13,8 @@ const json=(data:unknown,status=200)=>NextResponse.json(data,{status,headers:{'C
 const fail=(e:unknown)=>e instanceof z.ZodError?json({error:'Invalid input: '+e.issues.map(i=>`${i.path.join('.')||'body'} — ${i.message}`).join('; ')},400):e instanceof SyntaxError?json({error:'Request body must be valid JSON.'},400):json({error:e instanceof Error?(e.message==='FORBIDDEN'?'Sign in with the required role.':e.message):'Request failed'},e instanceof Error&&e.message==='FORBIDDEN'?403:400);
 export async function GET(req:Request,{params}:Context){try{
  const {action}=await params;const db=await database();const role=roleFor(req);const priv=role!=='public';
- if(action==='health')return json({ok:true,database:(await db.query('SELECT 1 AS ok')).rows[0],time:new Date().toISOString()});
+ // Aggregate counts only (no record content); the same totals are published in docs/SOURCE_LINEAGE.md.
+ if(action==='health'){const c=(await db.query<Record<string,number>>("SELECT (SELECT count(*) FROM imports)::int AS imports,(SELECT count(*) FROM records)::int AS records,(SELECT count(DISTINCT collection) FROM records)::int AS collections,(SELECT count(*) FROM incidents)::int AS incidents,(SELECT count(*) FROM feed_items)::int AS feed_items,(SELECT count(*) FROM providers WHERE last_success IS NOT NULL)::int AS providers_synced")).rows[0];return json({ok:true,database:{ok:1},counts:c,time:new Date().toISOString()});}
  if(action==='data'){
   await seedProviders(db);return json({role,tables:await researchSnapshot(priv),feed:(await db.query("SELECT f.*,p.name AS publisher FROM feed_items f JOIN providers p ON p.id=f.provider_id WHERE $1 OR f.status IN ('reviewed','corrected','retracted') ORDER BY published_at DESC NULLS LAST LIMIT 200",[priv])).rows,
    providers:(await db.query('SELECT * FROM providers ORDER BY name')).rows,
