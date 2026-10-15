@@ -1,0 +1,18 @@
+# Private user-supplied corpus: never publish by default
+/UAP_*
+/private/
+/.local/
+/.env*
+!/.env.example
+/node_modules/
+/.next/
+/out/
+/coverage/
+/test-results/
+/playwright-report/
+*.tsbuildinfo
+__pycache__/
+*.pyc
+.DS_Store
+*.log
+.claude/

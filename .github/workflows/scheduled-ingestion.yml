@@ -1,0 +1,20 @@
+# Calls the deployed app's cron endpoint. Providers still honour their own cadence; this only wakes the scheduler.
+# Requires repository secrets APP_URL (e.g. https://your-deployment.example) and CRON_TOKEN (32+ characters).
+name: Scheduled ingestion
+on:
+  schedule:
+    - cron: '17 */3 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger ingestion
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_TOKEN: ${{ secrets.CRON_TOKEN }}
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$CRON_TOKEN" ]; then echo "APP_URL or CRON_TOKEN secret not configured; skipping."; exit 0; fi
+          curl --fail-with-body -sS -X POST "$APP_URL/api/cron" -H "Authorization: Bearer $CRON_TOKEN" -H 'Content-Type: application/json' -d '{}'
