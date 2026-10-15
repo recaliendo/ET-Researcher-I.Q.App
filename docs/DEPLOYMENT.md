@@ -24,7 +24,25 @@ Generate a token:
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-## Container deployment (Render, Railway, Fly.io, Azure Container Apps…)
+## Render (configured)
+
+[render.yaml](../render.yaml) creates the Docker web service `et-researcher-iq` (starter plan) and PostgreSQL `et-researcher-iq-db` (basic-256mb). Render generates the role tokens and `CRON_TOKEN`; none are in the repository. Every push to `main` redeploys.
+
+1. Open https://dashboard.render.com/blueprint/new?repo=https://github.com/recaliendo/ET-Researcher-I.Q.App, sign in, connect GitHub if asked, review the two resources and their monthly cost, and click **Apply**.
+2. Wait for the first deploy to go live, then open `https://<service>.onrender.com/api/health`.
+3. One-time private import: in the database's **Networking** settings add your current IP to the access-control list, copy the **External Database URL**, and from the project folder run:
+
+```bash
+DATABASE_URL="<external database URL>?sslmode=require" pnpm import
+```
+
+4. Remove your IP from the access-control list again.
+5. In the web service's **Environment** tab, copy `ADMIN_TOKEN`; on the site, click the sign-in button (top right) and paste it.
+6. Open `/operations` to confirm all providers report a sync (the scheduler runs 30 s after start, then every 15 min).
+
+Optional: a custom domain under the service's **Settings**. The GitHub scheduled-ingestion workflow is not needed while the in-process scheduler runs.
+
+## Other container hosts (Railway, Fly.io, Azure Container Apps…)
 
 1. Provision PostgreSQL and set `DATABASE_URL`.
 2. Set the role tokens and `CRON_TOKEN`.

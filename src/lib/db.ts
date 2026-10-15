@@ -18,8 +18,12 @@ let pending:Promise<Database>|undefined;
 export async function connect(location?:string):Promise<Database> {
   const url=location ?? process.env.DATABASE_URL;
   let db:Database;
+  const schema=await readFile(path.join(process.cwd(),'db','001_initial.sql'),'utf8');
   if(url?.startsWith('postgres')) {
     const pool=new Pool({connectionString:url,max:8});
+    // Several server entry points can start at once; serialize CREATE IF NOT EXISTS, which races in PostgreSQL.
+    const setup=await pool.connect();
+    try{await setup.query('SELECT pg_advisory_lock(7241001)');await setup.query(schema);}finally{await setup.query('SELECT pg_advisory_unlock(7241001)').catch(()=>{});setup.release();}
     remoteDrizzle(pool); // Shared SQL schema; the native adapter handles transactional bulk ingestion.
     db={query:async<T>(sql:string,p?:unknown[])=>pool.query(sql,p) as unknown as Promise<{rows:T[]}>,exec:sql=>pool.query(sql),close:()=>pool.end(),transaction:async fn=>{
       const client=await pool.connect();
@@ -31,9 +35,8 @@ export async function connect(location?:string):Promise<Database> {
     if(dir!=='memory://') await mkdir(dir,{recursive:true});
     const engine=new PGlite(dir);await engine.waitReady;localDrizzle(engine);
     const wrap=(e:Pick<PGlite,'query'|'exec'>):Database=>({query:async<T>(s:string,p?:unknown[])=>e.query<T>(s,p),exec:s=>e.exec(s),close:()=>engine.close(),transaction:fn=>engine.transaction(t=>fn(wrap(t)))});
-    db=wrap(engine);
+    db=wrap(engine);await db.exec(schema);
   }
-  await db.exec(await readFile(path.join(process.cwd(),'db','001_initial.sql'),'utf8'));
   return db;
 }
 export const database=()=>pending??=(connect());
