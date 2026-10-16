@@ -80,3 +80,9 @@ test('end to end: ingestion → verification record → coding → adversarial �
   assert.ok(dossier(t,'E900',[doc],[{id:q,document_id:d,quote:doc.quotes[0],verified:true}]).allowed.includes(q));
  }finally{await db.close();}
 });
+test('a URL listed twice becomes one document with unique quote IDs and the more conservative tier',async()=>{
+ const {mergeByUrl}=await import('../src/lib/agents/pipeline');
+ const m=mergeByUrl([{url:'https://x.gov/a',kind:'official_report',tier:'primary',quotes:['q1','q2']},{url:'https://x.gov/a',kind:'laboratory_result',tier:'secondary',quotes:['q3','q1']},{url:'https://x.gov/b',kind:'official_report',tier:'primary',quotes:['q4']}]);
+ assert.equal(m.length,2);assert.deepEqual(m[0].quotes,['q1','q2','q3']);assert.equal(m[0].tier,'secondary');
+ const ids=m.flatMap(d=>d.quotes.map((_,i)=>quoteId(docId('E1',d.url),i)));assert.equal(new Set(ids).size,ids.length);
+});

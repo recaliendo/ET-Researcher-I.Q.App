@@ -16,6 +16,17 @@ export type Bundle={runs:Run[];sources:{incident_id:string;run_id:string;documen
 const sha=(x:unknown)=>createHash('sha256').update(typeof x==='string'?x:JSON.stringify(x)).digest('hex');
 export const docId=(incident:string,url:string)=>`DOC-${incident}-${sha(url).slice(0,10)}`;
 export const quoteId=(doc:string,i:number)=>`${doc}-Q${i+1}`;
+// The same URL listed twice (e.g. once as "primary", once as "secondary") must become ONE document, otherwise
+// document and quote IDs collide and citations become ambiguous. Keep every quote and the more conservative tier.
+const tierRank:Record<string,number>={primary:0,secondary:1,tertiary:2};
+export function mergeByUrl<T extends SourceDoc>(docs:T[]):T[]{
+ const out=new Map<string,T>();
+ for(const d of docs){const prev=out.get(d.url);if(!prev){out.set(d.url,{...d,quotes:[...(d.quotes||[])]});continue;}
+  const quotes=[...prev.quotes,...(d.quotes||[]).filter(q=>!prev.quotes.includes(q))];
+  const tier=(tierRank[d.tier]??3)>(tierRank[prev.tier]??3)?d.tier:prev.tier;
+  out.set(d.url,{...prev,tier,quotes,notes:[prev.notes,d.notes,`Merged duplicate listing (kinds: ${prev.kind}, ${d.kind}).`].filter(Boolean).join(' ')});}
+ return [...out.values()];
+}
 
 // Dossier given to the machine coders: imported v08/v09 record rows for the incident plus verified quotes only.
 export function dossier(t:Record<string,ResearchRow[]>,incident:string,docs:{id:string;url:string;title?:string|null;publisher?:string|null;document_date?:string|null;kind:string;tier:string;witness?:string|null;statement_date?:string|null}[],quotes:{id:string;document_id:string;quote:string;verified:boolean}[]){

@@ -7,7 +7,7 @@ import {execFileSync} from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 import {retrieve,checkQuote} from '../src/lib/agents/verify';
-import {dossier,docId,quoteId,importBundle,runOrchestrator,researchProgress,PROMPT_VERSION,type Bundle,type VerifiedDoc,type SourceDoc} from '../src/lib/agents/pipeline';
+import {dossier,docId,quoteId,mergeByUrl,importBundle,runOrchestrator,researchProgress,PROMPT_VERSION,type Bundle,type VerifiedDoc,type SourceDoc} from '../src/lib/agents/pipeline';
 import {RUBRIC_VERSION} from '../src/lib/agents/engine';
 import {connect} from '../src/lib/db';
 import {researchSnapshot} from '../src/lib/research';
@@ -22,7 +22,7 @@ async function pdfText(buf:Buffer){const tmp=mkdtempSync(path.join(os.tmpdir(),'
 async function verify(ids:string[]){
  for(const id of ids){
   const src=read(`sources_${id}.json`) as {documents:SourceDoc[]};const docs:VerifiedDoc[]=[];
-  for(const d of src.documents){const did=docId(id,d.url);const at=new Date().toISOString();
+  for(const d of mergeByUrl(src.documents)){const did=docId(id,d.url);const at=new Date().toISOString();
    try{const r=await retrieve(d.url,{pdfText});const ok=r.status>=200&&r.status<300;
     docs.push({...d,id:did,http_status:r.status,sha256:r.sha256,content_type:r.contentType,bytes:r.bytes,retrieved_at:at,verification:ok?'retrieved':'failed',quoteChecks:(d.quotes||[]).map((q,i)=>({id:quoteId(did,i),...(ok?checkQuote(r.text,q):{quote:q,verified:false,match:'none'})}))});}
    catch(e){docs.push({...d,id:did,http_status:0,sha256:'',content_type:'',bytes:0,retrieved_at:at,verification:'failed',error:e instanceof Error?e.message:String(e),quoteChecks:(d.quotes||[]).map((q,i)=>({id:quoteId(did,i),quote:q,verified:false,match:'none'}))});}
