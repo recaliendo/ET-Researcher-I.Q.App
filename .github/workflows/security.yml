@@ -71,5 +71,5 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with: {name: sbom, path: sbom.spdx.json, retention-days: 30}
       # Fails on critical vulnerabilities that have a fix available.
-      - uses: anchore/scan-action@1638637db639e0ade3258b51db49a9a137574c3e # v6
+      - uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
         with: {image: 'et-researcher-iq:ci', fail-build: true, severity-cutoff: critical, only-fixed: true, output-format: table}
