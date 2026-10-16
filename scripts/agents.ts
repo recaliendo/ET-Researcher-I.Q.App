@@ -21,11 +21,12 @@ async function pdfText(buf:Buffer){const tmp=mkdtempSync(path.join(os.tmpdir(),'
  // pypdf first; pdftotext (poppler) as fallback for encrypted or oddly encoded PDFs. Both texts are searched.
  try{let t='';try{t=execFileSync('python',['-E','-X','utf8','-c','import sys,pypdf;r=pypdf.PdfReader(sys.argv[1]);print("\\n".join((p.extract_text() or "") for p in r.pages))',f],{cwd:tmp,encoding:'utf8',maxBuffer:64*1024*1024,timeout:120000});}catch{t='';}return t+'\n'+viaPdftotext();}finally{rmSync(tmp,{recursive:true,force:true});}}
 
-async function verify(ids:string[]){
+const checkIds=(ids:string[])=>{const bad=ids.filter(i=>!/^E\d{3}$/.test(i));if(bad.length)throw new Error('Invalid incident id(s): '+bad.join(', '));};
+async function verify(ids:string[]){checkIds(ids);
  for(const id of ids){
   // Base pass plus any targeted supplements (sources_<ID>_s2.json, ...). Base documents come first, so existing
   // document and quote IDs never change; a supplement listing the same URL only appends quotes.
-  const extra=(await import('node:fs')).readdirSync(dir).filter(f=>new RegExp(`^sources_${id}_[a-z0-9]+[.]json$`).test(f)).sort();
+  const pre=`sources_${id}_`;const extra=(await import('node:fs')).readdirSync(dir).filter(f=>f.startsWith(pre)&&f.endsWith('.json')&&/^[a-z0-9]+$/.test(f.slice(pre.length,-5))).sort();
   const src={documents:[read(`sources_${id}.json`),...extra.map(read)].flatMap((x:{documents:SourceDoc[]})=>x.documents)};const docs:VerifiedDoc[]=[];
   for(const d of mergeByUrl(src.documents)){const did=docId(id,d.url);const at=new Date().toISOString();
    const hf=(d as SourceDoc&{human_file?:{sha256:string;bytes:number}}).human_file;
@@ -39,7 +40,7 @@ async function verify(ids:string[]){
  }
 }
 async function withDb<T>(fn:(db:any,t:any)=>Promise<T>){const db=await connect();try{return await fn(db,await researchSnapshot(true));}finally{await db.close();}}
-async function dossiers(ids:string[]){
+async function dossiers(ids:string[]){checkIds(ids);
  await withDb(async(_db,t)=>{for(const id of ids){const v=read(`verified_${id}.json`) as {documents:VerifiedDoc[]};
   const d=dossier(t,id,v.documents.filter(x=>x.verification==='retrieved'),v.documents.flatMap(x=>x.verification==='retrieved'?x.quoteChecks.map(q=>({id:q.id,document_id:x.id,quote:q.quote,verified:q.verified})):[]));
   write(`dossier_${id}.json`,d);console.log(id,'records',d.records.length,'verified quotes',d.evidence.reduce((n,e)=>n+e.quotes.length,0),'snapshot',d.snapshot.slice(0,12));}});
