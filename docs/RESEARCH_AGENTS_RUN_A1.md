@@ -69,3 +69,37 @@ Run data (sources, quotes, agent outputs, `bundle.json`) is in `private/agent_ru
 - Document authentication for sensor records (for example, the provenance of the Navy FLIR video) and custody for specimens.
 - Locate dated first statements made separately before any contact (V4).
 - Two human reviewers, each with an individual account, for confirmatory eligibility. Machine adjudication can never supply this.
+
+## Targeted round (run 2): pushing the closest incidents toward RQ1
+
+Three targeted acquisition passes went after only the gates blocking E015, E016, E021 and E024. Afterwards both blinded coders re-coded those four incidents (runs `RUN-coder-a-2` and `RUN-coder-b-2`) and the adversarial reviewer checked their work again (`RUN-adversarial-2`). The run-1 outputs are kept for audit.
+
+| Incident | Verified quotes (before → after) | Gates now established | Still missing, and why |
+|---|---|---|---|
+| **E016 Nimitz** | 5 → 15 | V1, V2, V3, V4 = NO (crews talked on the radio and debriefed together before any statement) | **V5 only.** The Navy hosts the FLIR video (NAVAIR FOIA reading room), but no official primary text ties it to the 14 Nov 2004 encounter. That link appears only in press quotes of a Pentagon spokesperson and an ONI FOIA letter. The 8 NAVAIR FOIA emails (case 2020-012022) were retrieved and read; they do not establish it. |
+| **E015 Delphos** | 6 → 17 | V1, V2 (the 3 Nov 1971 undersheriff report attributes the account to Ronald), V4 = NO (his parents saw only a receding light) | V3: the 1971 records are known only from 1972 newsletter reprints. V5: the samples resurfaced in 1998 with no documented chain of custody, and the 1999 lab work was privately commissioned. |
+| E021 Aguadilla | 5 → 11 | V1, V3, V5 (AARO examined the CBP video), V6, V7 (sky lanterns) | V2 and V4: the CBP pilot declined to speak, the tower logs were destroyed, and only relayed accounts exist. |
+| E024 Betz sphere | 4 → 15 | V1, V7 | V2, V3, V4, V5, V6: the Navy report is "nowhere to be found", and the family's words survive only as a 2019 paraphrase. |
+
+**Result:** RQ1 stays at **0 eligible incidents**. E016 is one gate away. The engine and the adversarial reviewer correctly refused to count a sensor link that rests only on press paraphrase.
+
+## How to move RQ1 above 0: documents a person can obtain
+
+Automation has reached the edge of the open web. Each item below is a lawful, specific acquisition. Once a document is obtained, ingest it with:
+
+```
+npx tsx scripts/agents.ts attach <EventID> <file> --url "<citation>" --title "..." --publisher "..." --date YYYY-MM-DD --kind <kind> --tier primary --quote "exact text from the file"
+npx tsx scripts/agents.ts verify <EventID> && npx tsx scripts/agents.ts dossiers <EventID>
+```
+
+Then re-code the incident with both blinded coders, run the adversarial review, and upload the new `bundle.json` in Operations. A quote is refused unless it appears verbatim in the file.
+
+| Priority | Incident · gate | Document to obtain | How |
+|---|---|---|---|
+| 1 | **E016 · V5** | The Office of Naval Intelligence FOIA response letter to Christian Lambright (late 2019 or January 2020), which acknowledges the SECRET video of the November 2004 sighting | Ask the requester for a copy, or file a FOIA request with ONI for "the response letter and the responsive records' cover pages" |
+| 1 | **E016 · V5** | A DoD or Navy statement naming the date and unit of the FLIR video, such as Pentagon spokesperson Susan Gough's January 2020 statement or the DoD's 27 April 2020 release, saved from defense.gov in a normal browser | Save as PDF from a browser; or request it from the DoD press office or through FOIA |
+| 2 | **E015 · V3** | Salina Journal, 5 Nov 1971 p. 2 and 7 Nov 1971 p. 16 (with the photograph of the ring) | Salina Public Library card (NewspaperArchive) or a Newspapers.com subscription; download the page PDFs |
+| 2 | **E015 · V5** | The original 3 Nov 1971 Ottawa County undersheriff report and the records of the sample in the sheriff's custody; any 1971–72 lab reports | Ottawa County Sheriff's Office records request; CUFOS archive request |
+| 3 | E021 · V2 | A firsthand statement from the CBP aircrew or tower | CBP FOIA request for the crew's incident report |
+
+**What counts as eligible:** E016 would become exploratory-eligible as **exposure NO, outcome YES** once an official primary record ties the sensor data to this encounter. That is one row of the 2×2. It would not be a finding about origin, and nothing becomes confirmatory without two human validations.
