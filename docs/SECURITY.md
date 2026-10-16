@@ -2,9 +2,11 @@
 
 ## Publication boundary
 
+**Terminology:** “Private” denotes restricted access to a maintained research record, not exclusive possession of original scientific or physical evidence. “Published” denotes an approved visibility decision, not corroboration or authentication. See [Research, evidence and release classifications](CLAIM_AND_RELEASE_CLASSIFICATIONS.md).
+
 - The GitHub repository is public. Research files (`UAP_*`), `private/`, local databases and `.env*` are git-ignored.
-- Imported records are `private`. Public visitors see only collections an administrator publishes through **Operations → Publication boundary**; every change is audited.
-- Before publishing a collection: confirm rights to republish, remove or pseudonymize private witness details, and confirm no copyrighted full text is exposed. Feed items store metadata and links only, never republished full text.
+- Imported records are `private`. Public visitors see only collections an administrator publishes through **Operations → Publication boundary**; every change is audited. The public/private flag has no evidentiary-strength meaning.
+- Before publishing a collection: confirm rights to republish, remove or pseudonymize private witness details, and confirm no copyrighted full text is exposed. An admin review for publication does not independently verify scientific claims. Feed items store metadata and links only, never republished full text.
 
 ## Roles
 
@@ -25,6 +27,8 @@ Tokens must be 32+ characters; comparisons are constant-time. Sessions are HMAC-
 - Ingestion only fetches allowlisted provider URLs, refuses redirects, caps size and time, and rejects XML DTDs/entities.
 
 ## AI safeguards
+
+The canonical corpus documents sources, assertions and secondary research with explicit limits; model outputs are not original evidence or adjudicated research findings.
 
 - Retrieved text is passed as untrusted data with instructions to ignore embedded commands.
 - Structured JSON output; any citation outside the retrieved set rejects the answer.
