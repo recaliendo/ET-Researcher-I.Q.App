@@ -1,11 +1,11 @@
 # Commercialization: Product & Engineering Release Roadmap
 
-**Status:** Proposed / not implemented  
+**Status:** R0–R5 proposed / not implemented (a documentation commit is not a feature release)  
 **Scope:** Individual customer accounts, subscription billing, usage metering and limits, commercial onboarding, and team-specific workspaces.  
-**Baseline:** The current Next.js 16 / React 19 / TypeScript app; PostgreSQL in production, PGlite locally; the v08 canonical evidence corpus with optional v09 extension records.  
+**Baseline:** The current Next.js 16 / React 19 / TypeScript app; PostgreSQL in production, PGlite locally; the privately maintained v08 research corpus with optional v09 provisional extraction records.  
 **Intended initial product:** A useful free Public Observatory, optional individual Researcher Pro access, then a Team tier. Pricing such as $19/month or $149+/month is a hypothesis to test, not an implemented plan or forecast.
 
-> North star: Sell a safer and more productive evidence-investigation experience, not a claim of extraterrestrial authentication. A paid subscription must never automatically override evidence publication controls, witness privacy, data rights, source qualification, or scientific integrity gates.
+> North star: Sell a safer and more productive evidence-investigation experience, not a claim of extraterrestrial authentication. A paid subscription must never automatically override evidence publication controls, witness privacy, data rights, source qualification, or scientific integrity gates. See [Research, evidence and release classifications](CLAIM_AND_RELEASE_CLASSIFICATIONS.md): private denotes access status, not exclusive ownership or authentication of physical evidence.
 
 ## 1. Repository-grounded starting point
 
@@ -24,16 +24,18 @@ Current schema has no users, customer subscriptions, usage ledgers, onboarding s
 
 ## 2. Delivery sequence and release contracts
 
+**Commercial classification:** Every R0–R5 milestone below is currently **Proposed**. Use Proposed → In development → In verification → Released (or Blocked) for commercial feature delivery; these are distinct from v08/v09 research versions, scientific RQ statuses, and private/public publication flags. Update to Released only after acceptance, security/operations review and owner sign-off.
+
 The phases are sequential gates, not a promise that all features are production-ready today. R0 establishes the security/data foundations. R1–R5 deliver the five requested commercial milestones in order; R2 can support a flat-rate pilot before detailed consumption billing is attempted.
 
-| Release | User-visible milestone | Dependencies | Indicative size | Release gate |
-| --- | --- | --- | --- | --- |
-| R0 · Foundation | No public paywall; architectural hardening | Existing app | M | Migration/permission design approved, staging backup and restores tested |
-| R1 · Identity | Individual customer accounts | R0 | L | One customer cannot access another user or private research through any route |
-| R2 · Billing | Subscription checkout and self-service management | R1 | M–L | Provider webhook reconciliation and cancel/failure/retry scenarios pass |
-| R3 · Metering | Plan entitlements, consumption and limits | R2; instrument key operations in R1/R2 | M | No bypass through concurrent requests, exports, API calls or retries |
-| R4 · Onboarding | Conversion-ready commercial customer journey | R1–R3 | M | New user can activate, understand plan access and self-serve without operator intervention |
-| R5 · Teams | Isolated, paid organization workspaces | R0 tenant-aware schema; R1–R4 | L–XL | Cross-tenant isolation and role/invite tests pass, including exports and AI retrieval |
+| Release | Status | User-visible milestone | Dependencies | Indicative size | Release gate |
+| --- | --- | --- | --- | --- | --- |
+| R0 · Foundation | Proposed | No public paywall; architectural hardening | Existing app | M | Migration/permission design approved, staging backup and restores tested |
+| R1 · Identity | Proposed | Individual customer accounts | R0 | L | One customer cannot access another user or private research through any route |
+| R2 · Billing | Proposed | Subscription checkout and self-service management | R1 | M–L | Provider webhook reconciliation and cancel/failure/retry scenarios pass |
+| R3 · Metering | Proposed | Plan entitlements, consumption and limits | R2; instrument key operations in R1/R2 | M | No bypass through concurrent requests, exports, API calls or retries |
+| R4 · Onboarding | Proposed | Conversion-ready commercial customer journey | R1–R3 | M | New user can activate, understand plan access and self-serve without operator intervention |
+| R5 · Teams | Proposed | Isolated, paid organization workspaces | R0 tenant-aware schema; R1–R4 | L–XL | Cross-tenant isolation and role/invite tests pass, including exports and AI retrieval |
 
 Sizes are relative planning estimates (M: roughly one focused sprint, L: multiple; XL: larger). Capacity, actual dates and costs require an owner estimate after technical spikes. Do not pre-sell capabilities behind an unreleased gate.
 
@@ -42,7 +44,7 @@ Sizes are relative planning estimates (M: roughly one focused sprint, L: multipl
 **Goal:** Make the current single-corpus, shared-role application safe to evolve without jeopardizing research integrity.
 
 - [ ] Publish an authorization matrix with four *distinct* concepts: platform administration; curator/research access; paid product entitlement; and future workspace membership. These must never be treated as interchangeable.
-- [ ] Establish public scientific collections vs curator-private canonical collections vs customer-owned data. Customer payment alone grants only product features and expressly published/licensed research, not existing private records.
+- [ ] Establish approved public research collections vs access-restricted canonical research records vs customer-owned data. Customer payment alone grants only product features and expressly published/licensed research, not existing private records.
 - [ ] Design immutable account IDs and nullable future workspace/tenant ownership on new commercial objects; do not attach workspace ownership to the canonical imported corpus.
 - [ ] Add additive, versioned SQL migrations, tested against PostgreSQL and the supported local-development mode, with snapshot/restore and rollback instructions. Preserve db/001_initial.sql compatibility and importer idempotency.
 - [ ] Inventory every existing read/write surface: /api/data, /api/export, /api/document, /api/ask, /api/analysis, /api/notifications, /api/task, /api/review, /api/publish*, /api/provider and /api/ingest. Identify public vs curator vs billable vs system actions.
@@ -147,7 +149,7 @@ Sizes are relative planning estimates (M: roughly one focused sprint, L: multipl
 
 ## 9. Architecture guardrails (apply across all releases)
 
-1. **Data domains stay separate:** canonical imported scientific evidence; curated public feed; platform editorial/audit; individual customer data; organization data; billing/usage. No monetization mutation of v08/v09 source records or research-question states.
+1. **Data domains stay separate:** canonical imported research records (which document claims and analyses, not authenticated ET specimens); curated public feed; platform editorial/audit; individual customer data; organization data; billing/usage. No monetization mutation of v08/v09 source records or research-question states.
 2. **Authorization is conjunctive, not additive:** user identity + correct object ownership/workspace membership + feature entitlement + independent record publication/source permission. A paid plan is not an editorial role.
 3. **AI is a consumer, never the evidence writer:** preserve retrieval citation validation, uncertainty, prompt-injection defenses, analyst-review labeling and external-private-AI opt-in. No generic AI answer becomes authenticated evidence.
 4. **Migrate safely:** additive, versioned SQL; backups before migration; rehearsal on anonymized staging; rollback/roll-forward plan; keep the private research package and production secrets out of Git.
@@ -200,4 +202,4 @@ Sizes are relative planning estimates (M: roughly one focused sprint, L: multipl
 - render.yaml, .env.example, .github/workflows/ci.yml — secrets, deployment and test infrastructure.
 - docs/SECURITY.md, docs/DEPLOYMENT.md, docs/DATA_DICTIONARY.md — keep operational/security documents synchronized **when** features ship.
 
-**Implementation note:** This document is the roadmap only. It does not create users, process payments, provision a billing provider or declare any R1–R5 release complete.
+**Implementation note:** This document is the roadmap only. It does not create users, process payments, provision a billing provider or declare any R0–R5 release complete. Commercial release classification is independent of the scientific study's outcomes and record publication/access status.
