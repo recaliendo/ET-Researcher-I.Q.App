@@ -38,3 +38,24 @@ The canonical corpus documents sources, assertions and secondary research with e
 ## Corrections & retractions
 
 Editors mark feed items `corrected` or `retracted` with a rationale. Decisions appear under **Methodology → Corrections & retractions**, are written to the audit log, and notify subscribers. Imported research is corrected by issuing a new package version and re-importing, never by editing records in place.
+
+## Hardening (security-hardening branch, October 2026)
+
+See [SECURITY_ASSESSMENT.md](SECURITY_ASSESSMENT.md) for the full register.
+
+- **Response contracts:** `src/lib/contracts.ts` allow-lists fields per role for `GET /api/data`.
+  - Public: published collections, labelled leads, provider health, and the public correction history only.
+  - Reader: research data.
+  - Editor: audit and imports.
+  - Admin: publication settings.
+- **Sessions:** sign-in creates a server-side session (`et_sid`, HttpOnly, Secure, SameSite=Strict, 8 h).
+  - Sign-out revokes it. Rotating a role token ends every session issued with it.
+  - Admins can revoke all sessions from Operations.
+- **CSRF:** cookie-authenticated writes require a same-origin `Origin` or `Sec-Fetch-Site`. Login is same-origin only.
+- **Rate limits:**
+  - Login: 10 per 15 min per client, 100 overall.
+  - Analysis: 30/min. Subscribe: 10/h. Data: 120/min. Export: 10/min. Ask: 20/min per session, concurrency 4.
+- **Errors:** unexpected errors return a generic message with a log reference.
+- **Headers:** CSP without `unsafe-eval` in production; HSTS, COOP, CORP, X-Frame-Options, nosniff and Permissions-Policy.
+- **Agents:** `src/lib/agent-policy.ts` defines least-privilege grants and human-only actions. It also covers SSRF-safe URLs, prompt-injection flags and deterministic output validation.
+- **CI gates:** `.github/workflows/security.yml` covers dependency audit, secret detection, CodeQL, container scan with SBOM, and the security tests. Dependabot is enabled.
