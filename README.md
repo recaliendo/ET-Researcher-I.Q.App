@@ -55,6 +55,7 @@ Other commands: `pnpm test`, `pnpm typecheck`, `pnpm build`, `pnpm lineage` (reg
 - [Security, governance & publication boundary](docs/SECURITY.md)
 - [Source lineage manifest](docs/SOURCE_LINEAGE.md)
 - [Delivery report](docs/DELIVERY_REPORT.md)
+- [Commercialization product & engineering roadmap (proposed)](docs/COMMERCIALIZATION_ROADMAP.md)
 
 ## Publication boundary
 
