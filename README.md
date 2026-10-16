@@ -4,6 +4,8 @@
 
 It is not a UFO news site. Every finding links to its source record and its methodological qualifications, and the application enforces the project's integrity rules: unknown is not negative evidence, unexplained is not extraterrestrial, and statistical significance is not authentication.
 
+**Scope of the corpus:** The project maintains a privately maintained, versioned scientific research corpus of case records, source documents, witness and artifact *claims*, provenance assessments, and reproducible secondary analyses. Here, *private* describes record access and publication controls—not possession of original material, exclusive unpublished discoveries, or independently authenticated extraterrestrial evidence. The audited subset has not established a complete public extraterrestrial-origin proof chain; this is not a claim of worldwide absence. See [Research, evidence and release classifications](docs/CLAIM_AND_RELEASE_CLASSIFICATIONS.md).
+
 ## What's inside
 
 | Area | What it does |
@@ -55,8 +57,9 @@ Other commands: `pnpm test`, `pnpm typecheck`, `pnpm build`, `pnpm lineage` (reg
 - [Security, governance & publication boundary](docs/SECURITY.md)
 - [Source lineage manifest](docs/SOURCE_LINEAGE.md)
 - [Delivery report](docs/DELIVERY_REPORT.md)
-- [Commercialization product & engineering roadmap (proposed)](docs/COMMERCIALIZATION_ROADMAP.md)
+- [Commercialization product & engineering roadmap (R0–R5 proposed; not shipped)](docs/COMMERCIALIZATION_ROADMAP.md)
+- [Research, evidence and release classifications](docs/CLAIM_AND_RELEASE_CLASSIFICATIONS.md)
 
 ## Publication boundary
 
-This repository is public. The v0.8 research package, witness records and full-text documents are **not** committed (`.gitignore` excludes `UAP_*`, `private/` and local data). Imported records are private by default; an administrator can publish a collection only through the audited publication control after a rights and witness-privacy review.
+This repository is public. The v0.8 research package, witness records and full-text documents are **not** committed (`.gitignore` excludes `UAP_*`, `private/` and local data). Imported records are private by default; an administrator can publish a collection only through the audited publication control after a rights and witness-privacy review. Publishing changes visibility, not the scientific validity or independence of any underlying claim.
