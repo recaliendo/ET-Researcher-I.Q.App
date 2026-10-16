@@ -169,7 +169,10 @@ textarea{width:100%;min-height:90px;resize:vertical}
 .metric-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:var(--space-4) var(--space-5);box-shadow:var(--shadow)}
 .metric-top{display:flex;justify-content:space-between;color:var(--muted);font-size:var(--text-sm)}
 .metric-card strong{display:block;font-family:var(--font-serif);font-size:2.3rem;font-weight:500;margin:var(--space-1) 0;color:var(--ink)}
-.metric-card small{color:var(--muted)}.metric-blocked{color:var(--amber)!important;font-size:1.8rem!important;letter-spacing:.04em}
+.metric-card small{color:var(--muted)}
+.readiness-card{text-decoration:none;color:inherit;border-top:3px solid var(--amber)}.readiness-card:hover{border-color:var(--accent)}
+.readiness-card strong small{font-size:1rem;color:var(--muted)}
+.mini-track{height:6px;border-radius:999px;background:var(--chart-track);margin:6px 0 4px;overflow:hidden}.mini-track>div{height:100%;background:var(--blue)}.metric-blocked{color:var(--amber)!important;font-size:1.8rem!important;letter-spacing:.04em}
 .section-title{display:flex;justify-content:space-between;align-items:baseline;gap:var(--space-3);flex-wrap:wrap}
 .section-title h2{font-family:var(--font-serif);font-weight:500;font-size:var(--text-xl)}
 .position-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-4)}

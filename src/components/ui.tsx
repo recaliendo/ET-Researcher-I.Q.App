@@ -1,4 +1,5 @@
 'use client';
+import {useState} from 'react';
 import Link from 'next/link';
 import {ArrowUpRight} from 'lucide-react';
 import type {ResearchRow} from '@/lib/research-types';
@@ -8,7 +9,16 @@ export function Panel({title,eyebrow,children,action}:{title:string;eyebrow?:str
 export function Note({children,tone=''}:{children:React.ReactNode;tone?:string}){return <div className={'note '+tone}>{children}</div>;}
 export function Empty({children}:{children:React.ReactNode}){return <div className="empty"><div className="empty-symbol">∅</div>{children}</div>;}
 export function Fields({row}:{row:ResearchRow}){return <dl className="fields">{Object.entries(row).filter(([k])=>!k.startsWith('_')).map(([k,v])=><div key={k}><dt>{k}</dt><dd>{/^https?:\/\//.test(v)?<SourceLink href={v}/>:v||'Not recorded'}</dd></div>)}</dl>;}
-export function RecordList({rows,titleKey}:{rows:ResearchRow[];titleKey?:string}){return rows.length?<div className="record-list">{rows.map((r,i)=><details key={r._recordId||i} id={r._recordId}><summary><span className="record-number">{String(i+1).padStart(2,'0')}</span>{r[titleKey||Object.keys(r)[0]]}<span className="detail-plus">+</span></summary><Fields row={r}/></details>)}</div>:<Empty>No records available in the accessible corpus.</Empty>;}
+export function RecordList({rows,titleKey}:{rows:ResearchRow[];titleKey?:string}){return rows.length?<div className="record-list">{rows.map((r,i)=><RecordItem key={r._recordId||i} row={r} index={i} titleKey={titleKey}/>)}</div>:<Empty>No records available in the accessible corpus.</Empty>;}
+// Fields render only once a record is opened (or when it is the URL target), keeping long lists light.
+function RecordItem({row:r,index:i,titleKey}:{row:ResearchRow;index:number;titleKey?:string}){
+ const [open,setOpen]=useState(()=>typeof location!=='undefined'&&!!r._recordId&&location.hash==='#'+r._recordId);
+ return <details id={r._recordId} open={open||undefined} onToggle={e=>setOpen((e.currentTarget as HTMLDetailsElement).open)}><summary><span className="record-number">{String(i+1).padStart(2,'0')}</span>{r[titleKey||Object.keys(r)[0]]}<span className="detail-plus">+</span></summary>{open&&<Fields row={r}/>}</details>;
+}
+export function LazyDetails({id,className,summary,children}:{id?:string;className?:string;summary:React.ReactNode;children:()=>React.ReactNode}){
+ const [open,setOpen]=useState(false);
+ return <details id={id} className={className} onToggle={e=>setOpen((e.currentTarget as HTMLDetailsElement).open)}><summary>{summary}</summary>{open&&children()}</details>;
+}
 export function SectionHeader({label,title,description,action}:{label:string;title:string;description:string;action?:React.ReactNode}){return <header className="section-header"><div><div className="eyebrow">{label}</div><h1>{title}</h1><p>{description}</p></div>{action}</header>;}
 export function More({href,children}:{href:string;children:React.ReactNode}){return <Link className="text-link" href={href}>{children}<ArrowUpRight size={16}/></Link>;}
 export function download(name:string,value:unknown){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'}));a.download=name;a.click();URL.revokeObjectURL(a.href);}
