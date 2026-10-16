@@ -2,6 +2,8 @@
 
 Audience: engineers and product leaders. Theme: **a research product that refuses to overclaim, and shows exactly what would change its mind.**
 
+**Opening disclosure:** “The project uses a privately maintained, versioned research corpus; private describes access controls, not possession of exclusive original specimens or independently verified extraterrestrial evidence. Its commercial R0–R5 releases are proposed, not shipped.” See [Research, evidence and release classifications](CLAIM_AND_RELEASE_CLASSIFICATIONS.md).
+
 ## Before you start (5 minutes ahead)
 
 1. Open https://et-researcher-iq.onrender.com in the browser you will present from and press **Ctrl+F5**.
@@ -45,7 +47,7 @@ Audience: engineers and product leaders. Theme: **a research product that refuse
 
 - Six real sources on provider-specific schedules; every item **Analyst review pending** until a human records a rationale.
 - Research assistant: ask *"Which investigations have the most consequential custody gaps?"* Answers cite retrieved records and state their uncertainty.
-- Operations: provider health, audit log, and the **Publication boundary** (staged changes, confirmation, stale-save protection). Witness data stays private.
+- Operations: provider health, audit log, and the **Publication boundary** (staged changes, confirmation, stale-save protection). Witness data stays access-restricted; publishing a collection changes visibility, not scientific validation.
 
 ## 7. Close (1 min)
 
@@ -57,5 +59,7 @@ Audience: engineers and product leaders. Theme: **a research product that refuse
 |---|---|
 | Why not just say RQ1 passed or failed? | It can't be tested yet. Running a test on ineligible data would produce a meaningless p-value. |
 | Is the AI deciding anything? | No. It retrieves and extracts with citations; human coders adjudicate. Citations outside the retrieved set are rejected. |
+| What do you mean by private scientific evidence? | A privately maintained, versioned research corpus of documented claims, sources and analyses—not possession or authentication of original ET material. |
+| Are R0–R5 commercialization releases live? | No. They are proposed milestones with independent engineering, security and acceptance gates. |
 | How is private data protected? | Private by default, an audited publication boundary, role-based access, and a database closed to the internet. |
 | What's the stack? | Next.js and TypeScript, PostgreSQL on Render, scheduled ingestion, axe-checked WCAG 2.2 AA. |
