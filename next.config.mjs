@@ -1,8 +1,9 @@
-import type { NextConfig } from 'next';
+// Plain JavaScript so the production image needs no TypeScript (dev dependencies are pruned).
 // 'unsafe-eval' is needed only by the development server (React refresh). Production builds omit it.
 const dev=process.env.NODE_ENV!=='production';
 const csp=["default-src 'self'",`script-src 'self' 'unsafe-inline'${dev?" 'unsafe-eval'":''}`,"style-src 'self' 'unsafe-inline'","img-src 'self' data:","connect-src 'self'","font-src 'self'","object-src 'none'","frame-ancestors 'none'","base-uri 'self'","form-action 'self'"].join('; ');
-const config: NextConfig = {
+/** @type {import('next').NextConfig} */
+const config = {
   serverExternalPackages: ['@electric-sql/pglite', 'pg'],
   poweredByHeader: false,
   async headers() { return [{source:'/:path*',headers:[

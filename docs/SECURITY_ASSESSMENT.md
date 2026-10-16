@@ -22,6 +22,7 @@
 | S8 | Low | Production CSP allowed `'unsafe-eval'`; no HSTS, COOP or CORP headers. | Confirmed with response headers. | **Fixed.** No `unsafe-eval` in production, plus HSTS, COOP, CORP and `object-src 'none'`. All 10 pages and the in-browser bootstrap run with 0 console errors under the new policy. |
 | S9 | Low | The cron token was compared with `!==` (not constant-time); role tokens were compared with a length-revealing early exit. | Code review. | **Fixed.** Hash-then-`timingSafeEqual` for all secrets. |
 | S10 | Low | GitHub Actions were referenced by mutable tags, and checkout credentials persisted. There was no SAST, secret scan, dependency audit, container scan or SBOM. | Code review. | **Fixed.** Actions pinned to SHAs and `persist-credentials: false`. New `security.yml` runs `pnpm audit --prod` (high), gitleaks, CodeQL security-extended, a Grype container scan (critical, fixable) with an SPDX SBOM, and the security test suites. Dependabot runs with a 14-day cooldown. |
+| S11 | **High** | The production container shipped critical and high CVEs: Debian `perl-base`, the Go standard library inside the dev-only `esbuild` binary, and dev-only npm packages. Dev dependencies stayed in the image so `next.config.ts` could be loaded. | Confirmed by the new CI container scan (Grype, first run). | **Fixed in Dockerfile:** `apt-get upgrade` in the runtime stage, `pnpm prune --prod`, and config moved to `next.config.mjs`. Verified by the CI re-scan on this PR. |
 
 ## 2. Security for planned autonomous agents (Priority 4)
 
@@ -83,3 +84,12 @@ The twelfth, frontend regressions, was checked with a production-build browser r
 **Optional:** add `SESSION_SECRET` (32+ random characters) in Render. Without it, the session key is derived from the role tokens.
 
 **Rollback:** in Render → et-researcher-iq → Events, choose the previous deploy → **Rollback**. Alternatively, run `git revert` on the merge commit and push. The `sessions` table can stay; the old code ignores it. Signed-in users simply sign in again.
+
+## 6. Post-merge incident (16 October 2026)
+
+- **What happened:** PR #1 was merged and deployed successfully (`c1917e5`). Six Dependabot PRs were then merged. The Node `22-slim` → `25-slim` bump removed the bundled `corepack`, so `RUN corepack enable` failed, and every later Render build failed. Production stayed on the last good deploy.
+- **CodeQL breakage:** Dependabot moved `codeql-action/analyze` to v4 while `init` stayed on v3, which broke CodeQL.
+- **Fix:**
+  - Back to Node 22 LTS, and Dependabot now ignores Node major updates.
+  - CodeQL `init` and `analyze` are pinned to the same v4.38.2 SHA.
+  - The S11 image hardening is included.
