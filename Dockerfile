@@ -1,5 +1,5 @@
 # Production image. Requires DATABASE_URL (PostgreSQL); PGlite is for single-process local use only.
-FROM node:22-slim AS build
+FROM node:25-slim AS build
 WORKDIR /app
 RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -8,7 +8,7 @@ COPY . .
 # Dev dependencies stay: next start loads next.config.ts, which needs TypeScript.
 RUN pnpm build
 
-FROM node:22-slim
+FROM node:25-slim
 WORKDIR /app
 ENV NODE_ENV=production PORT=3000
 COPY --from=build /app/package.json /app/next.config.ts /app/tsconfig.json ./
