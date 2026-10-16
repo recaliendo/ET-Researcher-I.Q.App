@@ -9,6 +9,7 @@ import {contingency,historical,historicalTable,verified,reproduces,residuals,lea
 import {sixStage,eightStage,presets6,presets8,chain,mostLeveraged,socialVariables} from '@/lib/proof';
 import {sprintProgress,EXTRACTION,LAB} from '@/lib/progress';
 import {MethodsFirst,ReadinessFunnel,ReproduceRun} from './readiness';
+import {Status as StatusChip} from './chrome';
 
 const pct=(x:number,d=1)=>(x*100).toFixed(d)+'%';
 const superscript:Record<string,string>={'-':'⁻','+':'','0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹'};
@@ -17,30 +18,34 @@ function Label({kind}:{kind:'real'|'educational'|'illustrative'|'simulation'}){r
 
 /* ───────────── Psychology & Human Perception Lab ───────────── */
 export function Psychology({data}:{data:Snapshot}){
- const t=data.tables;const [open,setOpen]=useState(theories[0].id);const theory=theories.find(x=>x.id===open)!;
+ const t=data.tables;const [open,setOpen]=useState(theories[0].id),[rq,setRq]=useState('all');const theory=theories.find(x=>x.id===open)!;
+ const shown=theories.filter(x=>rq==='all'||x.rq.includes(rq));
+ const linkedCount=(x:typeof theories[number])=>(t.Cognitive_Claim_Coding||[]).filter(r=>x.psy.some(p=>(r['Theory IDs']||'').includes(p))).length;
  const map=(t.Cognitive_Theory_Map||[]).filter(r=>theory.psy.includes(r.TheoryID));
  const coding=t.Cognitive_Claim_Coding||[];
  const linked=coding.filter(r=>theory.psy.some(p=>(r['Theory IDs']||'').includes(p)));
  return <>
   <SectionHeader label="RESEARCH / PSYCHOLOGY & PERCEPTION" title="How people see, remember and report." description="Perception and memory science applied to testimony as research variables, never as a diagnosis of any witness."/>
+  <ol className="logic-chain" aria-label="Research logic chain"><li>Perceptual conditions</li><li>Encoding and memory</li><li>Recorded account</li><li>Independence assessment</li><li>RQ test</li></ol>
   <Note>Identifying a cognitive mechanism that <em>could</em> affect an account does not show that it <em>did</em>. Each theory below names the record a researcher would need before applying it to a real case.</Note>
+  <div className="chip-row" role="group" aria-label="Filter theories by research question">{['all','RQ1','RQ2','RQ3','RQ4','RQ6'].map(r=><button key={r} className={'chip '+(rq===r?'selected':'')} aria-pressed={rq===r} onClick={()=>{setRq(r);const first=theories.find(x=>r==='all'||x.rq.includes(r));if(first&&!(r==='all'||theory.rq.includes(r)))setOpen(first.id);}}>{r==='all'?'All questions':r} <span>{r==='all'?theories.length:theories.filter(x=>x.rq.includes(r)).length}</span></button>)}</div>
   <div className="lab-layout">
-   <nav className="theory-index" aria-label="Theories">{theories.map(x=><button key={x.id} className={x.id===open?'selected':''} aria-pressed={x.id===open} onClick={()=>setOpen(x.id)}><span>{x.code} · {x.psy.join(' · ')||'no PSY code'}</span>{x.name}</button>)}</nav>
+   <nav className="theory-index" aria-label="Theories">{shown.map(x=><button key={x.id} className={x.id===open?'selected':''} aria-pressed={x.id===open} onClick={()=>setOpen(x.id)}><span>{x.code} · {x.psy.join(' · ')||'not in codebook'} · {linkedCount(x)?`${linkedCount(x)} coded claims`:'no case data'}</span>{x.name}</button>)}</nav>
    <article className="panel theory-detail">
     <div className="eyebrow">{theory.code} · {theory.psy.length?'v0.8 '+theory.psy.join(' · '):'NO v0.8 PSY CODE · ADDED IN APP'}</div><h2>{theory.name}</h2>
     <div className="chip-row">{theory.rq.map(r=><Badge key={r} tone="blue">{r}</Badge>)}<Badge>{theory.tier}</Badge></div>
     <p className="large-text">{theory.plain}</p>
     <div className="theory-grid">
-     <section><h3>Scientific context</h3><p>{theory.context}</p></section>
-     <section><h3>Relevance to UAP testimony</h3><p>{theory.relevance}</p></section>
-     <section><h3>Measurable research variables</h3><ul>{theory.variables.map(v=><li key={v}>{v}</li>)}</ul></section>
-     <section><h3>Limits on application</h3><p>{theory.limits}</p></section>
-     <section><h3>How it can support or challenge a conclusion</h3><p>{theory.check}</p></section>
+     <section><h3>Mechanism</h3><p>{theory.context}</p></section>
+     <section><h3>Why it matters to ET Researcher I.Q.</h3><p>{theory.relevance}</p></section>
+     <section><h3>What we would measure</h3><ul>{theory.variables.map(v=><li key={v}>{v}</li>)}</ul></section>
+     <section><h3>Limits and competing explanations</h3><p>{theory.limits}</p></section>
+     <section><h3>How it bears on RQ inclusion and conclusions</h3><p>{theory.check}</p></section>
      <section><h3>Generalizability</h3><p>Evidence tier: {theory.tier}. Ordinary perception studies do not by themselves establish a UAP-specific effect; any case application needs the fields listed here.</p></section>
     </div>
-    <h3>Original studies</h3>{theory.references.map(r=><p className="reference" key={r.citation}>{r.citation} {r.doi&&<SourceLink href={'https://doi.org/'+r.doi}>doi:{r.doi}</SourceLink>}</p>)}
+    <h3>Original research and DOI</h3>{theory.references.map(r=><p className="reference" key={r.citation}>{r.citation} {r.doi&&<SourceLink href={'https://doi.org/'+r.doi}>doi:{r.doi}</SourceLink>}</p>)}
     <h3>Project codebook mapping</h3>{map.length?map.map(r=><div className="citation" key={r.TheoryID}><strong>{r.TheoryID} · {r['Source principle']}</strong><p>Construct: {r['Potential measurement construct']}. Extract: {r['Data to extract']}.</p><p className="muted">Guardrail: {r['Validity guardrail']}</p></div>):<p className="muted">{theory.psy.length?'Sign in to view the private project codebook mapping.':'Not yet in the project codebook. Adding it needs a PSY code, measurement construct and validity guardrail.'}</p>}
-    <h3>Examples from the dataset</h3>{linked.length?<p>{linked.length} coded claims are tagged with this theory, but their first-statement fields are not yet extracted, so no source-supported example can be shown. <Link href="/cases">Inspect the claims</Link></p>:<p className="muted">No source-supported example in the accessible corpus.</p>}
+    <h3>Case-linked data</h3>{linked.length?<p>{linked.length} coded claims are tagged with this theory, but their first-statement fields are not yet extracted, so no source-supported example can be shown. <Link href="/cases">Inspect the claims</Link></p>:<p className="muted">No source-supported example in the accessible corpus.</p>}
    </article>
   </div>
   <TheoryCrosswalk/>
@@ -100,16 +105,21 @@ export function StatisticsLab({data}:{data:Snapshot}){
  return <>
   <SectionHeader label="RESEARCH / STATISTICAL LAB" title="Show the numbers. Show their limits." description="Live, reproducible calculations on the actual published counts, kept apart from educational sandboxes and blocked analyses."/>
   <MethodsFirst/>
-  <div className="rq-status"><article className="panel blocked-card"><Lock size={20}/><div><div className="eyebrow">PRIMARY TEST · RQ1 · PROTOCOL STATUS: BLOCKED</div><h2>Not yet testable</h2><p>Does separately acquired firsthand testimony predict independently authenticated objective corroboration? No event-level table of independent first statements against authenticated corroboration exists. No p-value is issued.</p><RQ1Progress data={data}/></div></article>
+  <div className="rq-status"><article className="panel blocked-card"><Lock size={20}/><div><div className="eyebrow">PRIMARY TEST · RQ1 · PROTOCOL STATUS: BLOCKED</div><h2>Not yet inferentially testable</h2><p>Does separately acquired firsthand testimony predict independently authenticated objective corroboration? This is a gate, not a failed test: no p-value is issued until each incident passes all four gates.</p><ol className="gate-list"><li><a href="#stage-d">Dated first statement from a primary source</a></li><li><a href="#stage-e">Contact chronology showing independence</a></li><li><a href="#stage-f">Independently authenticated outcome</a></li><li><a href="#stage-i">Two blinded human coders</a></li></ol><RQ1Progress data={data}/></div></article>
    <article className="panel"><div className="eyebrow">SECONDARY TEST · EXECUTED</div><h2>GEIPAN era × category D</h2><p>An association between the decade of investigation and whether GEIPAN classified a case as D (unexplained after investigation). It describes classification history, not extraterrestrial likelihood.</p></article></div>
+  <Panel title="Three kinds of analysis on this page" eyebrow="DO NOT COMPARE THEIR NUMBERS DIRECTLY"><div className="compare-grid">
+   <article><StatusChip k="verified">Executed</StatusChip><h3>Published historical association</h3><p className="small">GEIPAN classification by era, recomputed from 1,969 published case counts. Real data; it describes how cases were classified, not what was seen.</p><a href="#geipan">Results explorer</a></article>
+   <article><StatusChip k="unknown">Not yet testable</StatusChip><h3>Novel incident-level test (RQ1)</h3><p className="small">First-statement independence × authenticated corroboration, one row per incident. Protocol written; 0 eligible incidents.</p><a href="#stage-a">Readiness funnel</a></article>
+   <article><StatusChip k="simulation">Sandbox</StatusChip><h3>Illustrative calculators</h3><p className="small">Power planner and contingency sandbox take invented inputs to show how the methods behave. Never research data.</p><a href="#calculators">Calculators</a></article>
+  </div></Panel>
   <ReadinessFunnel data={data}/>
-  <Panel title="Verified result: historical GEIPAN classification by era" eyebrow="SECONDARY · EXPLORATORY REANALYSIS" action={<Label kind="real"/>}>
+  <div id="geipan"/><Panel title="Verified result: historical GEIPAN classification by era" eyebrow="SECONDARY · EXPLORATORY REANALYSIS" action={<Label kind="real"/>}>
    <div className="result-strip">{[['n',verified.n.toLocaleString()],['Pearson χ²('+result.df+')',result.chi2.toFixed(2)],['p',sci(result.p)],['Cramér’s V',result.v.toFixed(3)],['Bootstrap 95% CI for V',verified.bootstrapCI.map(x=>x.toFixed(3)).join('–')]].map(([k,v])=><div key={k}><span>{k}</span><strong>{v}</strong></div>)}</div>
    <Note tone={ok?'success':'warning'}>{ok?'✓ Recomputed live in this browser and matches the v0.8 package (χ² = 77.81085, p = 1.0113×10⁻¹⁴, V = 0.19879).':'The live calculation does not match the package values. Treat this result as unverified.'} The bootstrap interval comes from the package’s Python run ({verified.bootstrapResamples.toLocaleString()} resamples, seed {verified.seed}).</Note>
    <div className="table-wrap" tabIndex={0} role="region" aria-label="Scrollable table"><table><thead><tr><th>Period</th><th>Total</th><th>D observed</th><th>D expected</th><th>Non-D observed</th><th>Non-D expected</th><th>D residual</th><th>D share (95% Wilson CI)</th></tr></thead><tbody>{table.map((r,i)=>{const [lo,hi]=wilson(r[0],r[0]+r[1]);return <tr key={i}><td>{historical.periods[i]}</td><td>{r[0]+r[1]}</td><td>{r[0]}</td><td>{result.expected[i][0].toFixed(1)}</td><td>{r[1]}</td><td>{result.expected[i][1].toFixed(1)}</td><td className={Math.abs(res[i][0])>2?'strong':''}>{res[i][0].toFixed(2)}</td><td>{pct(r[0]/(r[0]+r[1]))} ({pct(lo)}–{pct(hi)})</td></tr>;})}</tbody></table></div>
    <EraChart table={table}/>
    <div className="theory-grid"><section><h3>Assumptions checked</h3><ul><li>Minimum expected cell {result.minimumExpected.toFixed(2)} (&gt; 5)</li><li>Each case counted once in the original paper</li><li>No continuity correction (7×2 table)</li></ul></section><section><h3>Interpretation</h3><p>V ≈ 0.2 is a small-to-moderate association. Later eras have fewer D classifications, consistent with changing investigation methods and definitions (gap G009). It is not causation and not a measure of extraterrestrial likelihood.</p></section><section><h3>C is not D</h3><p>GEIPAN category C means <em>insufficient information</em> to conclude. Category D means <em>unexplained after investigation</em> with adequate data. This table compares D against all non-D (A, B and C together). It never merges C into D.</p></section></div>
-   <div className="button-row"><button className="button" onClick={()=>download('geipan-era-v08-reanalysis.json',{source:verified.source,periods:historical.periods,table,result,residuals:res,verifiedAgainst:verified,reproduced:ok,generated:new Date().toISOString(),caution:'Secondary classification-process association; not ET likelihood.'})}><Download size={15}/> Export calculation</button><SourceLink href={verified.source}>Laurent et al. source table</SourceLink></div>
+   <div className="button-row"><button className="button" onClick={()=>download('geipan-era-v08-reanalysis.json',{source:verified.source,periods:historical.periods,table,result,residuals:res,verifiedAgainst:verified,reproduced:ok,generated:new Date().toISOString(),caution:'Secondary classification-process association; not ET likelihood.'})}><Download size={15}/> Export calculation</button><SourceLink href={verified.source}>Laurent et al. source table</SourceLink><SourceLink href="https://github.com/recaliendo/ET-Researcher-I.Q.App/blob/main/src/lib/statistics.ts">Calculation code</SourceLink></div>
   </Panel>
   <ReproduceRun/>
   <Panel title="Sensitivity: drop one era at a time" eyebrow="ROBUSTNESS" action={<Label kind="real"/>}>
@@ -118,7 +128,7 @@ export function StatisticsLab({data}:{data:Snapshot}){
   </Panel>
   <div className="two-columns"><Panel title="Dataset eligibility for the primary test" eyebrow="RQ1 · INCLUSION AND EXCLUSION" action={<Label kind="real"/>}>{reasons.length?<><div className="bars">{reasons.map(([k,v])=><div className="bar-row" key={k}><span>{k}</span><div className="bar-track"><div className="bar-fill amber" style={{width:pct(v/eligibility.length)}}/></div><b>{v}</b></div>)}</div><p className="muted small">{eligibility.length} core events screened; eligible 2×2 rows: 0. Unknown evidence is not treated as absent evidence.</p></>:<Empty>Sign in to view eligibility records.</Empty>}</Panel>
    <Panel title="Blocked analyses" eyebrow="NOT RUN, WITH REASONS">{(t.Blocked_Tests_v03||[]).length?<RecordList rows={t.Blocked_Tests_v03} titleKey="Analysis"/>:<Empty>Sign in to view blocked-analysis records.</Empty>}</Panel></div>
-  <div className="two-columns"><PowerPlanner rows={t.Power_v08||[]}/><Sandbox/></div>
+  <div className="two-columns" id="calculators"><PowerPlanner rows={t.Power_v08||[]}/><Sandbox/></div>
  </>;
 }
 function RQ1Progress({data}:{data:Snapshot}){
@@ -154,17 +164,18 @@ function Sandbox(){
 
 /* ───────────── Evidence Protection & Proof Hypothesis ───────────── */
 export function ProofLab({data}:{data?:Snapshot}){
- const [model,setModel]=useState<'six'|'eight'>('six'),[path,setPath]=useState<'technology'|'biology'>('technology');
+ const [model,setModel]=useState<'six'|'eight'>('six'),[path,setPath]=useState<'technology'|'biology'>('technology'),[lab,setLab]=useState(false);
  const stages=model==='six'?sixStage:eightStage,presets=model==='six'?presets6:presets8;
  const [values,setValues]=useState<number[]>(presets6[1].values);
  const switchModel=(m:'six'|'eight')=>{setModel(m);setValues((m==='six'?presets6:presets8)[1].values);};
  const cumulative=chain(values),final=cumulative.at(-1)!,lever=mostLeveraged(values);
  return <>
-  <SectionHeader label="RESEARCH / EVIDENCE PROTECTION & PROOF" title="Was it here, or can we prove it now?" description="Two different questions. This module models only the second: the chance that investigators could find, access, preserve, authenticate and replicate proof if an authentic item had existed."/>
-  <Note tone="warning"><strong>Every percentage on this page is an adjustable scenario input.</strong> None is measured. The combined figure is scenario arithmetic, not the probability that extraterrestrial technology or biology was ever on Earth, and 100% minus it is not a probability of non-visitation.</Note>
-  <div className="toolbar"><div className="segmented" role="group" aria-label="Model">{([['six','v01 six-stage model'],['eight','Expanded eight-stage model']] as const).map(([id,l])=><button key={id} className={model===id?'selected':''} aria-pressed={model===id} onClick={()=>switchModel(id)}>{l}</button>)}</div><div className="segmented" role="group" aria-label="Evidence pathway">{([['technology','Technology pathway'],['biology','Biological-material pathway']] as const).map(([id,l])=><button key={id} className={path===id?'selected':''} aria-pressed={path===id} onClick={()=>setPath(id)}>{l}</button>)}</div></div>
+  <SectionHeader label="RESEARCH / PROOF & SCENARIO LAB" title="Was it here, or can we prove it now?" description="Two different questions. Real stage records come first; the optional Scenario Lab teaches how a proof chain multiplies, using inputs you choose."/>
+  <ObservedStages rows={data?.tables[LAB]||[]}/>
+  <div className="scenario-gate" role="note"><strong>Scenario Lab: illustrative conditional assumptions.</strong><p>Not an observed success rate, an ET probability or a predictive model. Every percentage is a slider you set; the output is chain-rule arithmetic. It never appears in findings.</p>{!lab&&<button className="button primary" onClick={()=>setLab(true)}>Open the Scenario Lab</button>}{lab&&<button className="button" onClick={()=>setLab(false)}>Close the Scenario Lab</button>}</div>
+  {lab&&<><div className="toolbar"><div className="segmented" role="group" aria-label="Model">{([['six','v01 six-stage model'],['eight','Expanded eight-stage model']] as const).map(([id,l])=><button key={id} className={model===id?'selected':''} aria-pressed={model===id} onClick={()=>switchModel(id)}>{l}</button>)}</div><div className="segmented" role="group" aria-label="Evidence pathway">{([['technology','Technology pathway'],['biology','Biological-material pathway']] as const).map(([id,l])=><button key={id} className={path===id?'selected':''} aria-pressed={path===id} onClick={()=>setPath(id)}>{l}</button>)}</div></div>
   <div className="proof-layout"><Panel title="Conditional stage success rates" eyebrow="SCENARIO INPUTS" action={<Label kind="illustrative"/>}>
-   <div className="button-row">{presets.map(p=><button key={p.name} className="button" onClick={()=>setValues(p.values)}>{p.name}</button>)}</div>
+   <div className="button-row">{presets.map(p=><button key={p.name} className="button" onClick={()=>setValues(p.values)}>{p.name} (assumed)</button>)}<button className="button" onClick={()=>setValues(presets[1].values)}><RotateCcw size={14}/> Reset</button></div>
    {stages.map((s,i)=><div className="stage" key={s.id}><label className="slider"><span><b>{i+1}. {s.label}</b> — {values[i]}% <small>given all earlier stages succeeded</small></span><input type="range" min="0" max="100" value={values[i]} onChange={e=>{const next=[...values];next[i]=+e.target.value;setValues(next);}}/></label><p className="muted small">{s.question} <em>{path==='technology'?s.technology:s.biology}</em></p></div>)}
   </Panel>
   <Panel title="Scenario arithmetic" eyebrow="CHAIN RULE · NOT EVIDENCE">
@@ -172,8 +183,8 @@ export function ProofLab({data}:{data?:Snapshot}){
    <svg viewBox={`0 0 320 ${stages.length*34+10}`} className="chart" role="img" aria-label="Cumulative scenario rate after each stage">{cumulative.map((v,i)=><g key={i}><text x="0" y={i*34+22} className="chart-label">{stages[i].label.split(' ')[0]}</text><rect x="110" y={i*34+8} width="200" height="18" className="track"/><rect x="110" y={i*34+8} width={Math.max(1,200*v)} height="18" className="bar"/><text x="314" y={i*34+22} className="chart-label" textAnchor="end">{pct(v,v<.01?3:1)}</text></g>)}</svg>
    <p className="small">Raising <b>{stages[lever.index].label}</b> by 10 points changes this scenario most. That identifies a stage worth <em>measuring</em>, not a fact about any case.</p>
    <p className="muted small">P(all stages | an authentic item existed) = P(S) × P(L|S) × … Each factor is conditional on earlier stages, so stages need not be independent. None has been estimated empirically.</p>
-  </Panel></div>
-  <ObservedStages rows={data?.tables[LAB]||[]}/>
+   <p className="muted small"><b>Dependence and uncertainty:</b> a single number hides uncertainty in every factor; if stages share causes (for example, secrecy affects both access and preservation), user-set conditionals must reflect that or the product misleads.</p>
+  </Panel></div></>}
   <div className="two-columns"><Panel title="Social and institutional hypotheses" eyebrow="HYPOTHESES REQUIRING EVIDENCE"><div className="hypothesis-list">{socialVariables.map(v=><div key={v.name}><h3>{v.name}</h3><p>{v.prediction}</p><p className="muted small">Test: {v.test}</p></div>)}</div><p className="muted small">These are testable hypotheses, not presumed explanations of any case.</p></Panel>
    <Panel title="Roadmap: replacing assumptions with measurements" eyebrow="PRE-SPECIFIED PILOT"><ol className="roadmap"><li><b>Sample.</b> Draw about 100 independently identifiable material-claim cases from official archives, matched with conventionally resolved records.</li><li><b>Code stages.</b> Record each stage as demonstrated, failed after adequate inquiry, restricted, lost or unknown, with exact source and date.</li><li><b>Dual coding.</b> Two blind coders; measure agreement before adjudication.</li><li><b>Estimate.</b> Stage-specific conditional success proportions with intervals and conservative missingness bounds, clustered by source network.</li><li><b>Compare.</b> Pre-specified non-ET control objects; prospective artifacts to measure change.</li></ol><Note>The GEIPAN chi-square result does not evaluate this hypothesis.</Note><More href="/priorities">See related research tasks</More></Panel></div>
   <Panel title="Separate evidence pathways" eyebrow="DISTINCT EXPERIMENTS"><div className="pathways"><div><h3>Observation → instrumentation</h3><p>Independent original reports plus raw, calibrated multisensor data can establish that something objectively unusual happened. On its own it cannot answer the recovery question.</p></div><div><h3>Observation → recovery → object → custody → laboratory</h3><p>Requires a uniquely identified surviving item, an unbroken custody chain and independent, replicated diagnostic results. Unusual composition alone does not establish non-human manufacture.</p></div></div></Panel>
