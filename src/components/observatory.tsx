@@ -24,7 +24,7 @@ export default function Observatory({section,detail}:{section:string;detail?:str
  <main id="main" tabIndex={-1}>{login&&<form className="login-panel" onSubmit={async e=>{e.preventDefault();try{await post('login',{token});setToken('');setLogin(false);reload();}catch(e){setError(String(e));}}}><label>Workspace access token<input type="password" autoComplete="current-password" value={token} onChange={e=>setToken(e.target.value)}/></label><button className="button primary">Sign in</button><button className="button" type="button" onClick={async()=>{await post('logout');reload();setLogin(false);}}>Sign out</button></form>}
  {error&&<Note tone="warning">{error} <button onClick={reload}>Retry</button></Note>}
  {!data?<div className="loading-state" role="status"><div className="skeleton large"/><div className="metrics">{[1,2,3,4].map(x=><div className="skeleton" key={x}/>)}</div><p>Connecting to the evidence repository…</p></div>:<>
- {data.role==='public'&&<Note>Public view · unpublished research is protected. Sign in to access the imported corpus, or publish selected records after a rights review.</Note>}
+ {data.role==='public'&&<Note>Public view · access-restricted research records are not displayed. Private refers to publication status, not possession or independent authentication of original physical evidence.</Note>}
  {section==='overview'&&<Overview data={data}/>}
  {section==='feed'&&<Feed data={data} reload={reload}/>}
  {section==='findings'&&<Findings data={data}/>}
