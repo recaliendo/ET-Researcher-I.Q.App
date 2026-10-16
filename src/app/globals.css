@@ -461,3 +461,8 @@ code,.mono{font-family:var(--font-mono)}
 .axes section{border:1px solid var(--line);border-radius:var(--radius-sm);padding:var(--space-3);background:var(--surface)}
 .axes h3{font-size:var(--text-sm);text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0 0 .4rem}
 .axes dl{margin:0;display:grid;gap:.3rem}.axes dl div{display:flex;justify-content:space-between;gap:.75rem;font-size:var(--text-sm)}.axes dd{margin:0;font-weight:700}
+/* Long unbroken values (URLs, identifiers, long statuses) must wrap instead of widening the page. */
+.record-title{min-width:0;overflow-wrap:anywhere}.detail-plus{flex-shrink:0}
+.record-list dd,.fields dd,.citation p,.feed-card p{overflow-wrap:anywhere}td{overflow-wrap:break-word}
+.badge{max-width:100%;white-space:normal;overflow-wrap:anywhere;text-align:left}
+summary{overflow-wrap:anywhere}

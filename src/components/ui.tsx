@@ -13,7 +13,7 @@ export function RecordList({rows,titleKey}:{rows:ResearchRow[];titleKey?:string}
 // Fields render only once a record is opened (or when it is the URL target), keeping long lists light.
 function RecordItem({row:r,index:i,titleKey}:{row:ResearchRow;index:number;titleKey?:string}){
  const [open,setOpen]=useState(()=>typeof location!=='undefined'&&!!r._recordId&&location.hash==='#'+r._recordId);
- return <details id={r._recordId} open={open||undefined} onToggle={e=>setOpen((e.currentTarget as HTMLDetailsElement).open)}><summary><span className="record-number">{String(i+1).padStart(2,'0')}</span>{r[titleKey||Object.keys(r)[0]]}<span className="detail-plus">+</span></summary>{open&&<Fields row={r}/>}</details>;
+ return <details id={r._recordId} open={open||undefined} onToggle={e=>setOpen((e.currentTarget as HTMLDetailsElement).open)}><summary><span className="record-number">{String(i+1).padStart(2,'0')}</span><span className="record-title">{r[titleKey||Object.keys(r)[0]]}</span><span className="detail-plus" aria-hidden="true">+</span></summary>{open&&<Fields row={r}/>}</details>;
 }
 export function LazyDetails({id,className,summary,children}:{id?:string;className?:string;summary:React.ReactNode;children:()=>React.ReactNode}){
  const [open,setOpen]=useState(false);
