@@ -42,6 +42,8 @@ It prompts for the URL with hidden input (paste once; nothing appears), adds `ss
 5. In the web service's **Environment** tab, copy `ADMIN_TOKEN`; on the site, click the sign-in button (top right) and paste it.
 6. Open `/operations` to confirm all providers report a sync (the scheduler runs 30 s after start, then every 15 min).
 
+Auto-deploy needs Render's GitHub app to have access to the repository (https://github.com/apps/render → Configure → Repository access). Without it, a public repo still builds, but Render receives no push notifications, so pushes do not deploy.
+
 Optional: a custom domain under the service's **Settings**. The GitHub scheduled-ingestion workflow is not needed while the in-process scheduler runs.
 
 ## Other container hosts (Railway, Fly.io, Azure Container Apps…)
