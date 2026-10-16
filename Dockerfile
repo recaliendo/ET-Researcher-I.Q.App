@@ -5,13 +5,16 @@ RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY . .
-# Dev dependencies stay: next start loads next.config.ts, which needs TypeScript.
 RUN pnpm build
+# Ship production dependencies only (no compilers, test tools or their bundled binaries).
+RUN CI=true pnpm prune --prod
 
 FROM node:22-slim
 WORKDIR /app
+# Apply Debian security updates to the base image at build time.
+RUN apt-get update && apt-get upgrade -y --no-install-recommends && rm -rf /var/lib/apt/lists/*
 ENV NODE_ENV=production PORT=3000
-COPY --from=build /app/package.json /app/next.config.ts /app/tsconfig.json ./
+COPY --from=build /app/package.json /app/next.config.mjs ./
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/.next ./.next
 COPY --from=build /app/public ./public
