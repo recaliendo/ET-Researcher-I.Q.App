@@ -9,6 +9,8 @@ import {roadmap,recruitment,guardrails,mars} from '@/lib/handoff';
 import {sprintProgress} from '@/lib/progress';
 import {POLICY_VERSION,SLA_DAYS,dueDate} from '@/lib/triage';
 import {GapBoard} from './readiness';
+import {Status as StatusChip} from './chrome';
+import {statuses,glossary} from '@/lib/glossary';
 
 // Publication dates are stored as UTC midnight; format in UTC so a date never shifts by the viewer's time zone.
 export const date=(s?:string|null)=>s?new Date(s).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}):'Not stated';
@@ -17,17 +19,17 @@ const editor=(role:string)=>role==='editor'||role==='admin';
 const param=(k:string)=>typeof window==='undefined'?null:new URLSearchParams(window.location.search).get(k);
 
 /* ───────────── Live Intelligence Feed ───────────── */
-const categories=['all','official reports','scientific findings','hearings','sightings','testimony','physical evidence','news','corrections'];
 const dispositionTone=(d?:string|null)=>d==='source-verified metadata lead'||d==='human reviewed'?'green':d==='possible duplicate'||d==='rejected'||d==='retracted'||d==='metadata check failed'?'red':'amber';
 export function Feed({data,reload}:{data:Snapshot;reload:()=>void}){
  const [cat,setCat]=useState('all'),[status,setStatus]=useState('all'),[q,setQ]=useState('');
  const dispositions=[...new Set(data.feed.map(f=>f.disposition||'untriaged'))];
- const items=data.feed.filter(f=>(cat==='all'||f.category===cat)&&(status==='all'||(f.disposition||'untriaged')===status)&&(f.title+' '+f.publisher).toLowerCase().includes(q.toLowerCase()));
- const counts=Object.fromEntries(categories.map(c=>[c,c==='all'?data.feed.length:data.feed.filter(f=>f.category===c).length]));
+ const topicOf=(f:FeedItem)=>f.topic||f.category;const topicList=['all',...[...new Set(data.feed.map(topicOf))].sort()];
+ const items=data.feed.filter(f=>(cat==='all'||topicOf(f)===cat)&&(status==='all'||(f.disposition||'untriaged')===status)&&(f.title+' '+f.publisher).toLowerCase().includes(q.toLowerCase()));
+ const counts=Object.fromEntries(topicList.map(c=>[c,c==='all'?data.feed.length:data.feed.filter(f=>topicOf(f)===c).length]));
  return <>
   <SectionHeader label="RESEARCH / LIVE INTELLIGENCE" title="New information, kept in its place." description="Scheduled retrieval from permitted public sources. Newly reported is not newly verified, and a repeated report is never counted as independent corroboration."/>
   <div className="provider-strip">{data.providers.map(p=><div key={p.id} className="provider-chip"><span className={'health '+(p.last_error?'bad':p.last_success?'good':'idle')} aria-hidden="true"/><div><b>{p.name}</b><small>{p.last_error?`Failed: ${p.last_error}`:p.last_success?`Synced ${time(p.last_success)}`:'Not yet synced'} · every {Math.round(p.cadence_minutes/60)} h</small></div></div>)}</div>
-  <div className="toolbar"><div className="chip-row" role="group" aria-label="Filter by category">{categories.map(c=><button key={c} className={'chip '+(cat===c?'selected':'')} aria-pressed={cat===c} onClick={()=>setCat(c)}>{c} <span>{counts[c]}</span></button>)}</div>
+  <div className="toolbar"><div className="chip-row" role="group" aria-label="Filter by what the item studies">{topicList.map(c=><button key={c} className={'chip '+(cat===c?'selected':'')} aria-pressed={cat===c} onClick={()=>setCat(c)}>{c} <span>{counts[c]}</span></button>)}</div>
    <select aria-label="Filter by disposition" value={status} onChange={e=>setStatus(e.target.value)}><option value="all">All dispositions</option>{dispositions.map(d=><option key={d} value={d}>{d}</option>)}</select>
    <label className="search-input"><input aria-label="Search the feed" placeholder="Search headlines or publishers…" value={q} onChange={e=>setQ(e.target.value)}/></label></div>
   <TriageSummary data={data}/>
@@ -38,10 +40,11 @@ export function Feed({data,reload}:{data:Snapshot;reload:()=>void}){
 function FeedCard({item:f,role,reload}:{item:FeedItem;role:string;reload:()=>void}){
  const [open,setOpen]=useState(false),[decision,setDecision]=useState('reviewed'),[why,setWhy]=useState(''),[err,setErr]=useState('');
  return <article className="feed-card">
-  <div className="feed-meta"><Badge>{f.topic||f.category}</Badge><Badge tone={dispositionTone(f.disposition)}>{f.disposition||'Not yet triaged'}</Badge>{f.disposition==='source-verified metadata lead'&&<Badge tone="blue">Research not adjudicated</Badge>}<span>{f.publisher}</span><span>Published {date(f.published_at)}</span><span>Ingested {date(f.ingested_at)}</span></div>
+  <div className="feed-meta"><Badge>{f.topic||f.category}</Badge><Badge tone={dispositionTone(f.disposition)}>{f.disposition||'Not yet triaged'}</Badge>{f.disposition==='source-verified metadata lead'&&<Badge tone="blue">Machine-classified · research not adjudicated</Badge>}<span>{f.publisher}</span><span>Published {date(f.published_at)}</span><span>Ingested {date(f.ingested_at)}</span></div>
   <h2><a href={f.canonical_url} target="_blank" rel="noopener noreferrer">{f.title}</a></h2>
   <p>{f.summary}</p>
-  <dl className="feed-facts"><div><dt>What’s new</dt><dd>{f.novelty}</dd></div><div><dt>Research significance</dt><dd>{f.significance}</dd></div><div><dt>Contradictions</dt><dd>{f.contradictions}</dd></div><div><dt>Evidence status</dt><dd>{f.triage?.evidenceRelation||f.original_source_status}</dd></div><div><dt>Case associations</dt><dd>{f.incident_ids?.length?f.incident_ids.map(a=><Link key={a.id} href={'/cases/'+a.id}>{a.id} <small>({a.status})</small> </Link>):'None suggested'}</dd></div><div><dt>Summary method</dt><dd>{f.summary_method}</dd></div></dl>
+  <p className="evidence-line"><b>Evidence status:</b> {f.triage?.evidenceRelation||f.original_source_status}</p>
+  <details className="feed-more"><summary>Details: novelty, significance, case links, method</summary><dl className="feed-facts"><div><dt>What’s new</dt><dd>{f.novelty}</dd></div><div><dt>Research significance</dt><dd>{f.significance}</dd></div><div><dt>Contradictions</dt><dd>{f.contradictions}</dd></div><div><dt>Case associations</dt><dd>{f.incident_ids?.length?f.incident_ids.map(a=><Link key={a.id} href={'/cases/'+a.id}>{a.id} <small>({a.status})</small> </Link>):'None suggested'}</dd></div><div><dt>Summary method</dt><dd>{f.summary_method}</dd></div></dl></details>
   {f.triage&&<TriageDetail item={f}/>}
   <div className="button-row"><SourceLink href={f.canonical_url}/>{editor(role)&&<button className="button" onClick={()=>setOpen(!open)}>{open?'Cancel review':'Review item'}</button>}</div>
   {open&&<form className="review-form" onSubmit={async e=>{e.preventDefault();try{await post('review',{id:f.id,decision,rationale:why});setOpen(false);reload();}catch(x){setErr(String(x));}}}>
@@ -156,6 +159,7 @@ export function Methodology({data}:{data:Snapshot}){
  return <>
   <SectionHeader label="RESEARCH / METHODOLOGY & SOURCES" title="How we know what we claim." description="Objectives, research questions, lineage, criteria, limitations and every imported record, so any claim can be traced to its source and its qualifications." action={<a className="button" href="/api/export"><Download size={15}/> Export accessible data</a>}/>
    <Note><b>About this corpus:</b> Privately maintained research records document sources, witness and artifact claims, provenance assessments and secondary calculations. “Private” describes access status—not exclusive discoveries, possession of original specimens or independent authentication of extraterrestrial material. Publishing a collection changes visibility, not scientific validity. The audited subset has not established a complete public extraterrestrial-origin proof chain.</Note>
+  <Panel title="Glossary and status definitions" eyebrow="SHARED VOCABULARY"><div id="glossary"/><dl className="glossary">{statuses.map(x=><div key={x.key}><dt><StatusChip k={x.key}/></dt><dd>{x.meaning}</dd></div>)}{glossary.map(([k,v])=><div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl></Panel>
   {record&&<Panel title="Requested source record" eyebrow={record}>{found?<Fields row={found}/>:<Empty>Record unavailable in this view. It may be private.</Empty>}</Panel>}
   <div className="two-columns"><Panel title="Project objectives" eyebrow="WHY THIS EXISTS"><ul className="plain-list"><li>Separate what is established, disputed, unresolved and insufficiently documented.</li><li>Test whether independent testimony predicts authenticated objective corroboration (RQ1, currently blocked).</li><li>Treat perception and memory science as measurable research variables.</li><li>Keep instrument evidence and recovered-material provenance as separate tracks.</li><li>Prioritize the specific records that could change a conclusion.</li></ul></Panel>
    <Panel title="Integrity rules" eyebrow="NON-NEGOTIABLE"><ul className="plain-list rules">{['Unknown evidence is not negative evidence.','An unexplained incident is not automatically extraterrestrial.','An official document confirms what the institution recorded, not necessarily the underlying assertion.','Witness rank, status or clearance is not a numerical truth prior.','Multiple witnesses to one incident are not automatically independent observations.','Sensor corroboration and recovered-material provenance are separate tracks.','Unusual laboratory composition does not establish non-human manufacture.','Zero verified cases in a limited corpus is not proof of worldwide absence.','Statistical significance is not causation or extraterrestrial authentication.','Never invent p-values, records, provenance, access, reliability or replication.',...guardrails].map(r=><li key={r}>{r}</li>)}</ul></Panel></div>
@@ -233,14 +237,15 @@ function ProviderControl({p,reload}:{p:Snapshot['providers'][number];reload:()=>
 
 /* ───────────── Separate science track: Mars & abiogenesis ───────────── */
 export function MarsTrack(){
- return <>
+ return <div className="mars-track">
+  <div className="mars-banner" role="note"><strong>Separate science track.</strong> Planetary chemistry, not UAP research. Nothing here counts toward any UAP case, statistic or readiness number.</div>
   <SectionHeader label="SEPARATE SCIENCE TRACK / MARS & ABIOGENESIS" title="Does life emerge when conditions allow?" description="A distinct research question about planetary chemistry. Nothing on this page is UAP evidence, and nothing from the UAP corpus is used here."/>
   <Note tone="warning"><strong>Scope boundary (REQ025).</strong> Mars-abiogenesis work is never mixed into UAP event counts, models or extraterrestrial attribution. The v08 archive contains <strong>no</strong> Mars simulation package, reaction-network output, measurement dataset or laboratory report, so this page records scope and plans only.</Note>
   <Panel title="Governing question" eyebrow="RESEARCH PROBLEM"><p className="large-text">{mars.question}</p></Panel>
   <Panel title="What exists at each level of evidence" eyebrow="STATUS · 15 OCTOBER 2026"><div className="ladder">{mars.ladder.map(l=><div key={l.level} className={/Defined/.test(l.status)?'proposed':'none'}><b>{l.level}</b><span>{l.status}</span></div>)}</div><p className="muted small">Mathematical feasibility, simulation, existing measurements, proposed experiments and completed laboratory findings are kept separate. A simulation is never presented as a laboratory discovery.</p></Panel>
   <div className="two-columns"><Panel title="Planned research sequence" eyebrow="FROM PROJECT CONVERSATIONS"><ol className="roadmap">{mars.sequence.map(x=><li key={x.step}><b>{x.step}.</b> {x.detail} <Badge>Planned · no preserved output</Badge></li>)}</ol></Panel>
    <Panel title="Next decisive milestones" eyebrow="OPEN REQUIREMENTS"><ul className="plain-list">{mars.open.map(x=><li key={x}>{x}</li>)}</ul><Note>No biological origin or new discovery may be claimed without discriminating evidence.</Note></Panel></div>
- </>;
+ </div>;
 }
 
 /* ───────────── Progress since v0.8 (v09 research sprint) ───────────── */
