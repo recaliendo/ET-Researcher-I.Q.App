@@ -22,4 +22,11 @@ export function LazyDetails({id,className,summary,children}:{id?:string;classNam
 export function SectionHeader({label,title,description,action}:{label:string;title:string;description:string;action?:React.ReactNode}){return <header className="section-header"><div><div className="eyebrow">{label}</div><h1>{title}</h1><p>{description}</p></div>{action}</header>;}
 export function More({href,children}:{href:string;children:React.ReactNode}){return <Link className="text-link" href={href}>{children}<ArrowUpRight size={16}/></Link>;}
 export function download(name:string,value:unknown){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'}));a.download=name;a.click();URL.revokeObjectURL(a.href);}
-export async function post(action:string,body:unknown={}){const r=await fetch('/api/'+action,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const json=await r.json();if(!r.ok)throw new Error(json.error||'Request failed');return json;}
+// Root cause of the "Failed to fetch" reports: a network failure (for example while Render swaps instances
+// during a deploy) surfaced as a raw TypeError, and a non-JSON proxy error page surfaced as a parse error.
+// Writes are never retried automatically, so an action is never applied twice.
+export async function post(action:string,body:unknown={}){
+ let r:Response;try{r=await fetch('/api/'+action,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});}
+ catch{throw new Error('No response from the server (network interruption or a deployment in progress). Check the result before retrying.');}
+ const json=await r.json().catch(()=>({error:r.status>=500?`The service is temporarily unavailable (HTTP ${r.status}). Try again in a minute.`:`Unexpected response (HTTP ${r.status}).`}));
+ if(!r.ok)throw new Error(json.error||'Request failed');return json;}

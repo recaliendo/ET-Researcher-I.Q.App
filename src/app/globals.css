@@ -457,3 +457,7 @@ code,.mono{font-family:var(--font-mono)}
 .lab-layout>*{min-width:0}.theory-index{max-width:100%}
 .gap-card dd a{display:inline-block;min-height:24px;min-width:24px;padding:2px 8px;margin:0 6px 4px 0;border:1px solid var(--line-strong);border-radius:999px}
 .theory-detail .badge{white-space:normal;text-align:left;max-width:100%}
+.axes{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:var(--space-3);margin:var(--space-3) 0}
+.axes section{border:1px solid var(--line);border-radius:var(--radius-sm);padding:var(--space-3);background:var(--surface)}
+.axes h3{font-size:var(--text-sm);text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0 0 .4rem}
+.axes dl{margin:0;display:grid;gap:.3rem}.axes dl div{display:flex;justify-content:space-between;gap:.75rem;font-size:var(--text-sm)}.axes dd{margin:0;font-weight:700}

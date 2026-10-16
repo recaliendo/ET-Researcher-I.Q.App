@@ -6,7 +6,8 @@ import type {Snapshot} from './observatory';
 import {Badge,Note,Panel,download} from './ui';
 import {funnel,targets,DESIGN_EFFECT,type Count} from '@/lib/funnel';
 import {gaps,GAP_STATUSES,type GapStatus} from '@/lib/gaps';
-import {bootstrapV,contingency,historical,historicalTable,verified} from '@/lib/statistics';
+import {bootstrapV,contingency,historical,historicalTable,verified,fisherExact} from '@/lib/statistics';
+import {Status} from './chrome';
 
 const pct=(a:number,b?:number)=>b?Math.round(a/b*100)+'%':'';
 function Num({c,axis}:{c?:Count;axis:string}){
@@ -84,7 +85,7 @@ export function ReproduceRun(){
 /* G001–G012 as a task board with distinct statuses. */
 const tone:Record<GapStatus,string>={completed:'green','in progress':'blue',blocked:'red','externally required':'amber','not started':'neutral'};
 export function GapBoard({data}:{data:Snapshot}){
- const list=gaps(data.tables);const [filter,setFilter]=useState<GapStatus|'all'>('all');
+ const list=gaps(data.tables,data.agents);const [filter,setFilter]=useState<GapStatus|'all'>('all');
  const shown=list.filter(g=>filter==='all'||g.status===filter);
  return <Panel title="Gap board: G001–G012" eyebrow="TASK-LEVEL PROGRESS · STATUSES ARE NEVER ROUNDED UP">
   <div className="chip-row" role="group" aria-label="Filter by status">{(['all',...GAP_STATUSES] as const).map(s=><button key={s} className={'chip '+(filter===s?'selected':'')} aria-pressed={filter===s} onClick={()=>setFilter(s)}>{s} <span>{s==='all'?list.length:list.filter(g=>g.status===s).length}</span></button>)}</div>
@@ -110,5 +111,31 @@ export function ReadinessGlance({data}:{data:Snapshot}){
  return <Panel title="Research readiness at a glance" eyebrow="OPERATIONAL WORK VS EVIDENCE THAT PASSED A GATE" action={<Link href="/statistics#stage-a">Full funnel</Link>}>
   <div className="table-wrap" tabIndex={0} role="region" aria-label="Scrollable table"><table><thead><tr><th>Stage</th><th>Operational</th><th>Evidence</th></tr></thead><tbody>{stages.map(s=><tr key={s.key}><td><b>{s.key}.</b> {s.title}</td><td>{s.operational?`${s.operational.value}${s.operational.of!=null?' / '+s.operational.of:''}`:'–'}</td><td>{s.evidence.value}{s.evidence.of!=null?' / '+s.evidence.of:''}</td></tr>)}</tbody></table></div>
   <p className="muted small">Operational counts are real work by machines or single passes; evidence counts only rows that passed a scientific gate. {stages.some(s=>!s.available)?'Some stages need sign-in to be computed from private records.':''}</p>
+ </Panel>;
+}
+
+/* Amendment A1: autonomous research pipeline progress. Four axes kept apart; every number is a persisted row. */
+const VARS:[string,string][]=[['V1','Identity'],['V2','Firsthand'],['V3','Authentic source'],['V4','Independent accounts'],['V5','Objective corroboration'],['V6','Investigation'],['V7','Conventional expl.']];
+const verdictKey=(v:string)=>v==='YES'?'verified':v==='NO'?'negative':v==='CONFLICTED'?'excluded':'unknown';
+export function AgentPipeline({data}:{data:Snapshot}){
+ const p=data.agents;if(!p)return null;const t=p.table;const n=p.exploratoryEligible;
+ const margins=[t.exposedOutcome+t.exposedNoOutcome,t.unexposedOutcome+t.unexposedNoOutcome,t.exposedOutcome+t.unexposedOutcome,t.exposedNoOutcome+t.unexposedNoOutcome];
+ const estimable=n>=20&&margins.every(m=>m>0);
+ const fisher=estimable?fisherExact([[t.exposedOutcome,t.exposedNoOutcome],[t.unexposedOutcome,t.unexposedNoOutcome]]):null;
+ const axes:[string,[string,string|number][]][]=[
+  ['Operational progress',[['Candidate incidents',p.candidates],['Incidents with retrieved sources',p.incidentsWithSources],['Source documents retrieved',p.sourcesRetrieved],['Quotes verified on the live page',`${p.quotesVerified} / ${p.quotesChecked}`],['Machine coder reviews',p.machineReviews],['Adversarial reviews',p.adversarialReviews]]],
+  ['Scientific readiness',[['Incidents adjudicated by rules engine',p.adjudicated],...Object.entries(p.states).map(([k,v])=>[k.replace(/_/g,' ').toLowerCase(),v] as [string,number]),['Agent conflicts escalated',p.conflicts]]],
+  ['Evidentiary confidence',[['Primary documents with verified quotes',p.primarySourcesVerified],['Exploratory-eligible (machine-adjudicated)',p.exploratoryEligible],['Human validations recorded',p.humanValidations],['Confirmatory-eligible (two humans)',p.confirmatoryEligible]]],
+  ['Statistical power',[['Exploratory effective N',n],['Confirmatory effective N',p.confirmatoryEligible],['Planning target (independent / clustered)',`${targets().iid} / ${targets().clustered}`],['Exploratory test',estimable?'run':'not estimable (needs ≥20 and all margins > 0)']]]
+ ];
+ return <Panel title="Autonomous research pipeline" eyebrow="AMENDMENT A1 · MACHINE-ADJUDICATED EXPLORATORY STANDARD" action={<Badge tone="blue">Exploratory · not confirmatory</Badge>}>
+  <p className="muted small">Source acquisition, two blinded machine coders, an adversarial reviewer and a deterministic rules engine. Machine adjudication never meets the confirmatory two-human standard, and agreement between machines is not inter-rater reliability. <a href="https://github.com/recaliendo/ET-Researcher-I.Q.App/blob/main/docs/PROTOCOL_AMENDMENT_v10.md">Protocol amendment A1</a></p>
+  <div className="axes">{axes.map(([title,rows])=><section key={title}><h3>{title}</h3><dl>{rows.map(([k,v])=><div key={k}><dt>{k}</dt><dd className="num">{v}</dd></div>)}</dl></section>)}</div>
+  <h3>Exploratory RQ1 table (machine-adjudicated incidents only)</h3>
+  <div className="table-wrap" tabIndex={0} role="region" aria-label="Scrollable table"><table><thead><tr><th>Exposure (V4) \ Outcome (V5)</th><th>Corroborated</th><th>Not corroborated</th></tr></thead><tbody><tr><td>Independent accounts</td><td>{t.exposedOutcome}</td><td>{t.exposedNoOutcome}</td></tr><tr><td>No independent accounts</td><td>{t.unexposedOutcome}</td><td>{t.unexposedNoOutcome}</td></tr></tbody></table></div>
+  <Note tone={estimable?'success':'warning'}>{estimable?`Exploratory Fisher exact p = ${fisher!.p.toFixed(4)} (n = ${n}). Hypothesis-generating only.`:`Not estimable: ${n} exploratory-eligible ${n===1?'incident':'incidents'}. The pre-specified minimum is 20 with every margin above zero. No p-value is issued.`}</Note>
+  <p className="muted small">Machine–machine agreement on {p.agreement.n} variable codings: {p.agreement.observed==null?'—':pct(p.agreement.observed*100,100)} identical{p.agreement.kappa==null?'':`, κ = ${p.agreement.kappa.toFixed(2)}`}. This measures consistency between two model runs, not accuracy.</p>
+  {p.incidents.length>0&&<details><summary>Per-incident adjudication ({p.incidents.length})</summary><div className="table-wrap" tabIndex={0} role="region" aria-label="Scrollable table"><table><thead><tr><th>Incident</th><th>State</th>{VARS.map(([c,l])=><th key={c} title={l}>{c}</th>)}<th>Eligibility and reasons</th></tr></thead><tbody>{p.incidents.map(i=><tr key={i.id}><td><a href={'/cases/'+i.id}>{i.id}</a></td><td><small>{i.state.replace(/_/g,' ').toLowerCase()}</small></td>{VARS.map(([c])=>{const v=i.variables[c];return <td key={c} title={`A: ${v?.a} · B: ${v?.b}${v?.rejected?' · rejected: '+v.rejected:''}`}><Status k={verdictKey(v?.value||'UNKNOWN')}>{v?.value||'—'}</Status></td>;})}<td><small>{i.exploratory?'Exploratory-eligible. ':''}{i.reasons.join(' ')}</small></td></tr>)}</tbody></table></div><p className="muted small">Hover a value to see coder A, coder B and any adversarial rejection. Variables: {VARS.map(([c,l])=>`${c} ${l}`).join(' · ')}.</p></details>}
+  {p.failures.length>0&&<Note tone="warning">Processing failures: {p.failures.map(f=>`${f.incident_id}: ${f.last_error}`).join('; ')}</Note>}
  </Panel>;
 }
