@@ -11,6 +11,7 @@ import {ask} from '@/lib/assistant';
 import {hash} from '@/lib/importer';
 import {contingency} from '@/lib/statistics';
 import {z} from 'zod';
+import {importBundle,runOrchestrator,researchProgress,adjudicateIncident,type Bundle} from '@/lib/agents/pipeline';
 export const runtime='nodejs';export const dynamic='force-dynamic';
 type Context={params:Promise<{action:string}>};
 const json=(data:unknown,status=200)=>NextResponse.json(data,{status,headers:{'Cache-Control':'no-store'}});
@@ -36,7 +37,10 @@ export async function GET(req:Request,{params}:Context){try{
   // Response contract per role (src/lib/contracts.ts): every field below is gated by role at query time
   // and shaped (allow-listed) at serialization time.
   const staff=atLeast(role,'editor');
-  return json({role,tables,feed:shapeFeed(feed,role),snapshots,triageCounts,
+  // Research-agent progress: counts and the 2×2 for everyone; per-incident variables and failures for readers.
+  const progress=await researchProgress(db,await researchSnapshot(true));
+  const agents=priv?progress:{...progress,incidents:[],failures:[],jobs:[]};
+  return json({role,tables,feed:shapeFeed(feed,role),snapshots,triageCounts,agents,
    providers:shapeProviders((await db.query('SELECT * FROM providers ORDER BY name')).rows,role),
    tasks:priv?(await db.query('SELECT * FROM tasks ORDER BY priority,id')).rows:[],
    imports:staff?(await db.query('SELECT * FROM imports ORDER BY filename')).rows:[],
@@ -55,8 +59,9 @@ export async function GET(req:Request,{params}:Context){try{
  return json({error:'Not found'},404);
  }catch(e){return fail(e);}}
 export async function POST(req:Request,{params}:Context){try{
- const {action}=await params;if(Number(req.headers.get('content-length')||0)>30000)throw new PublicError('Request too large',413);
- const raw=await req.text();if(raw.length>30000)throw new PublicError('Request too large',413);const body=raw?JSON.parse(raw):{};const db=await database();
+ const {action}=await params;const limit=action==='agents-import'?4_000_000:30000;
+ if(Number(req.headers.get('content-length')||0)>limit)throw new PublicError('Request too large',413);
+ const raw=await req.text();if(raw.length>limit)throw new PublicError('Request too large',413);const body=raw?JSON.parse(raw):{};const db=await database();
  const who:Principal=await principal(req,db);const ip=clientKey(req);
  if(action==='login'){
   // Login CSRF and brute force: same-origin only; 10 attempts per 15 minutes per client, 100 overall.
@@ -97,6 +102,15 @@ export async function POST(req:Request,{params}:Context){try{
    await tx.query("UPDATE records SET publication=CASE WHEN collection = ANY($1::text[]) THEN 'public' ELSE 'private' END",[b.public]);
    await audit(tx,role,'publication-set','records',{before,after:[...b.public].sort()});return {public:b.public.length};});
   return json({ok:true,...result});}
+ // Agent pipeline (Amendment A1). Importing and running are admin actions; agents themselves cannot call these.
+ if(action==='agents-import'){requireRole(req,'admin',who);rateLimit('agents-import',ip,10,60*60_000);
+  const b=z.object({runs:z.array(z.any()).max(50),sources:z.array(z.any()).max(500),assessments:z.array(z.any()).max(2000)}).parse(body) as unknown as Bundle;
+  const counts=await importBundle(db,b,actor(who));const out=await runOrchestrator(db,await researchSnapshot(true));return json({ok:true,counts,adjudicated:out});}
+ if(action==='agents-run'){requireRole(req,'admin',who);rateLimit('agents-run',ip,20,60*60_000);return json({ok:true,results:await runOrchestrator(db,await researchSnapshot(true))});}
+ // Human validation is the only route to confirmatory eligibility. Each signed-in reviewer session counts once.
+ if(action==='human-validate'){requireRole(req,'editor',who);const b=z.object({incident:z.string().regex(/^E\d{3}$/),decision:z.enum(['validated','rejected']),rationale:z.string().min(30).max(4000)}).parse(body);
+  await db.query('INSERT INTO human_validations(id,incident_id,actor,decision,rationale) VALUES($1,$2,$3,$4,$5) ON CONFLICT(incident_id,actor) DO UPDATE SET decision=excluded.decision,rationale=excluded.rationale,created_at=now()',[crypto.randomUUID(),b.incident,actor(who),b.decision,b.rationale]);
+  await audit(db,actor(who),'human-validate',b.incident,{decision:b.decision});const r=await adjudicateIncident(db,await researchSnapshot(true),b.incident);return json({ok:true,state:r.state});}
  if(action==='subscribe'){rateLimit('subscribe',ip,10,60*60_000);if(Number((await db.query<{n:number}>('SELECT count(*)::int AS n FROM subscriptions')).rows[0].n)>=50000)throw new PublicError('Subscriptions are temporarily unavailable.',503);const b=z.object({subscriber:z.string().uuid(),category:z.enum(['all','official reports','hearings','physical evidence','corrections'])}).parse(body);await db.query('INSERT INTO subscriptions(id,subscriber_hash,category) VALUES($1,$2,$3) ON CONFLICT DO NOTHING',[crypto.randomUUID(),hash(b.subscriber),b.category]);return json({ok:true,delivery:'In-app notification inbox. No email delivery configured.'});}
  return json({error:'Not found'},404);
  }catch(e){return fail(e);}}

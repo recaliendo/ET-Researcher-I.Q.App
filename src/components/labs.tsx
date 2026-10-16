@@ -8,7 +8,7 @@ import {theories,codingVariables,isUnknown,pdf,sdt} from '@/lib/psychology';
 import {contingency,historical,historicalTable,verified,reproduces,residuals,leaveOneOut,wilson,fisherExact,requiredN,effectiveWitnesses} from '@/lib/statistics';
 import {sixStage,eightStage,presets6,presets8,chain,mostLeveraged,socialVariables} from '@/lib/proof';
 import {sprintProgress,EXTRACTION,LAB} from '@/lib/progress';
-import {MethodsFirst,ReadinessFunnel,ReproduceRun} from './readiness';
+import {MethodsFirst,ReadinessFunnel,ReproduceRun,AgentPipeline} from './readiness';
 import {Status as StatusChip} from './chrome';
 
 const pct=(x:number,d=1)=>(x*100).toFixed(d)+'%';
@@ -113,6 +113,7 @@ export function StatisticsLab({data}:{data:Snapshot}){
    <article><StatusChip k="simulation">Sandbox</StatusChip><h3>Illustrative calculators</h3><p className="small">Power planner and contingency sandbox take invented inputs to show how the methods behave. Never research data.</p><a href="#calculators">Calculators</a></article>
   </div></Panel>
   <ReadinessFunnel data={data}/>
+  <AgentPipeline data={data}/>
   <div id="geipan"/><Panel title="Verified result: historical GEIPAN classification by era" eyebrow="SECONDARY · EXPLORATORY REANALYSIS" action={<Label kind="real"/>}>
    <div className="result-strip">{[['n',verified.n.toLocaleString()],['Pearson χ²('+result.df+')',result.chi2.toFixed(2)],['p',sci(result.p)],['Cramér’s V',result.v.toFixed(3)],['Bootstrap 95% CI for V',verified.bootstrapCI.map(x=>x.toFixed(3)).join('–')]].map(([k,v])=><div key={k}><span>{k}</span><strong>{v}</strong></div>)}</div>
    <Note tone={ok?'success':'warning'}>{ok?'✓ Recomputed live in this browser and matches the v0.8 package (χ² = 77.81085, p = 1.0113×10⁻¹⁴, V = 0.19879).':'The live calculation does not match the package values. Treat this result as unverified.'} The bootstrap interval comes from the package’s Python run ({verified.bootstrapResamples.toLocaleString()} resamples, seed {verified.seed}).</Note>

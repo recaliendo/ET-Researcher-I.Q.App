@@ -1,0 +1,12 @@
+-- Amendment A1: autonomous research pipeline. Machine outputs are stored separately from v08/v09 records.
+CREATE TABLE IF NOT EXISTS agent_runs (id text PRIMARY KEY, agent text NOT NULL, model text NOT NULL, prompt_version text NOT NULL, rubric_version text NOT NULL, snapshot_sha256 text, started_at timestamptz, completed_at timestamptz, details jsonb NOT NULL DEFAULT '{}');
+CREATE TABLE IF NOT EXISTS source_documents (
+ id text PRIMARY KEY, incident_id text NOT NULL, url text NOT NULL, title text, publisher text, document_date text, kind text NOT NULL, tier text NOT NULL,
+ witness text, statement_date text, http_status integer, sha256 text, content_type text, bytes integer, retrieved_at timestamptz,
+ verification text NOT NULL, run_id text REFERENCES agent_runs(id), UNIQUE(incident_id,url));
+CREATE TABLE IF NOT EXISTS evidence_quotes (id text PRIMARY KEY, document_id text NOT NULL REFERENCES source_documents(id), incident_id text NOT NULL, quote text NOT NULL, verified boolean NOT NULL, match text NOT NULL, checked_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS agent_assessments (id text PRIMARY KEY, incident_id text NOT NULL, agent text NOT NULL, run_id text REFERENCES agent_runs(id), output jsonb NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), UNIQUE(incident_id,agent,run_id));
+CREATE TABLE IF NOT EXISTS adjudications (id text PRIMARY KEY, incident_id text NOT NULL, rubric_version text NOT NULL, engine_version text NOT NULL, state text NOT NULL, variables jsonb NOT NULL, exploratory_eligible boolean NOT NULL, confirmatory_eligible boolean NOT NULL, reasons jsonb NOT NULL, inputs_sha256 text NOT NULL, current boolean NOT NULL DEFAULT true, created_at timestamptz NOT NULL DEFAULT now());
+CREATE INDEX IF NOT EXISTS adjudications_current ON adjudications(incident_id) WHERE current;
+CREATE TABLE IF NOT EXISTS human_validations (id text PRIMARY KEY, incident_id text NOT NULL, actor text NOT NULL, decision text NOT NULL CHECK(decision IN ('validated','rejected')), rationale text NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), UNIQUE(incident_id,actor));
+CREATE TABLE IF NOT EXISTS agent_jobs (id text PRIMARY KEY, incident_id text NOT NULL, stage text NOT NULL, state text NOT NULL, attempts integer NOT NULL DEFAULT 0, last_error text, locked_until timestamptz, updated_at timestamptz NOT NULL DEFAULT now(), UNIQUE(incident_id,stage));
