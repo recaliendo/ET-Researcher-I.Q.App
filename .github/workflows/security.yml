@@ -68,7 +68,7 @@ jobs:
       - run: docker build -t et-researcher-iq:ci .
       - uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
         with: {image: 'et-researcher-iq:ci', format: spdx-json, output-file: sbom.spdx.json, upload-artifact: false}
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with: {name: sbom, path: sbom.spdx.json, retention-days: 30}
       # Fails on critical vulnerabilities that have a fix available.
       - uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
