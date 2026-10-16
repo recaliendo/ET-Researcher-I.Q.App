@@ -366,3 +366,31 @@ textarea{width:100%;min-height:90px;resize:vertical}
  .bar-row{grid-template-columns:1fr 54px}.bar-row .bar-track{grid-column:1/-1;grid-row:2}
  .finding-grid,.case-grid{grid-template-columns:1fr}
 }
+/* v10: feed triage, readiness funnel, methodology */
+.triage{margin:.25rem 0 .75rem;border:1px solid var(--line);border-radius:var(--radius-sm);padding:.5rem .75rem;background:var(--surface-2);font-size:var(--text-sm)}
+.triage summary{cursor:pointer}
+.check-list{list-style:none;padding:0;margin:.5rem 0;display:grid;gap:.25rem}
+.check-list .pass span{color:var(--green)}.check-list .fail span{color:var(--red)}.check-list .skip span{color:var(--muted)}
+.check-list small{color:var(--muted)}
+.funnel{display:grid;gap:.5rem}
+.funnel-row{display:grid;grid-template-columns:2.2rem minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr);gap:.75rem;align-items:start;padding:.65rem .75rem;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface)}
+.funnel-row .key{font-family:var(--font-mono);font-weight:700;color:var(--accent)}
+.funnel-row h3{margin:0;font-size:var(--text-md)}
+.funnel-row .axis{font-size:var(--text-xs);color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.funnel-row .num{font-size:1.15rem;font-weight:700}
+.funnel-row .blocked{color:var(--amber);font-size:var(--text-sm)}
+.funnel-row details{grid-column:2 / -1;font-size:var(--text-sm)}
+.funnel-row code{word-break:break-word}
+@media (max-width:760px){.funnel-row{grid-template-columns:2rem minmax(0,1fr)}.funnel-row>div:nth-child(n+3){grid-column:2}}
+.method-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.75rem}
+.method-grid div{border-left:3px solid var(--accent);padding:.25rem .75rem}
+.method-grid dt{font-size:var(--text-xs);text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.method-grid dd{margin:.2rem 0 0}
+.gap-board{display:grid;gap:.6rem}
+.gap-card{border:1px solid var(--line);border-radius:var(--radius-sm);padding:.75rem;background:var(--surface);scroll-margin-top:5rem}
+.gap-card:target{outline:2px solid var(--accent)}
+.gap-card header{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center}
+.gap-card h3{margin:0;font-size:var(--text-md)}
+.gap-card dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.5rem;margin:.5rem 0 0;font-size:var(--text-sm)}
+.gap-card dt{font-size:var(--text-xs);color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.gap-card dd{margin:0}

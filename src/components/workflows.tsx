@@ -7,6 +7,8 @@ import {Badge,Empty,Fields,LazyDetails,More,Note,Panel,RecordList,SectionHeader,
 import {taskStates,type ResearchRow} from '@/lib/research-types';
 import {roadmap,recruitment,guardrails,mars} from '@/lib/handoff';
 import {sprintProgress} from '@/lib/progress';
+import {POLICY_VERSION,SLA_DAYS,dueDate} from '@/lib/triage';
+import {GapBoard} from './readiness';
 
 // Publication dates are stored as UTC midnight; format in UTC so a date never shifts by the viewer's time zone.
 export const date=(s?:string|null)=>s?new Date(s).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}):'Not stated';
@@ -16,33 +18,52 @@ const param=(k:string)=>typeof window==='undefined'?null:new URLSearchParams(win
 
 /* ───────────── Live Intelligence Feed ───────────── */
 const categories=['all','official reports','scientific findings','hearings','sightings','testimony','physical evidence','news','corrections'];
+const dispositionTone=(d?:string|null)=>d==='source-verified metadata lead'||d==='human reviewed'?'green':d==='possible duplicate'||d==='rejected'||d==='retracted'||d==='metadata check failed'?'red':'amber';
 export function Feed({data,reload}:{data:Snapshot;reload:()=>void}){
  const [cat,setCat]=useState('all'),[status,setStatus]=useState('all'),[q,setQ]=useState('');
- const items=data.feed.filter(f=>(cat==='all'||f.category===cat)&&(status==='all'||f.status===status)&&(f.title+' '+f.publisher).toLowerCase().includes(q.toLowerCase()));
+ const dispositions=[...new Set(data.feed.map(f=>f.disposition||'untriaged'))];
+ const items=data.feed.filter(f=>(cat==='all'||f.category===cat)&&(status==='all'||(f.disposition||'untriaged')===status)&&(f.title+' '+f.publisher).toLowerCase().includes(q.toLowerCase()));
  const counts=Object.fromEntries(categories.map(c=>[c,c==='all'?data.feed.length:data.feed.filter(f=>f.category===c).length]));
  return <>
   <SectionHeader label="RESEARCH / LIVE INTELLIGENCE" title="New information, kept in its place." description="Scheduled retrieval from permitted public sources. Newly reported is not newly verified, and a repeated report is never counted as independent corroboration."/>
   <div className="provider-strip">{data.providers.map(p=><div key={p.id} className="provider-chip"><span className={'health '+(p.last_error?'bad':p.last_success?'good':'idle')} aria-hidden="true"/><div><b>{p.name}</b><small>{p.last_error?`Failed: ${p.last_error}`:p.last_success?`Synced ${time(p.last_success)}`:'Not yet synced'} · every {Math.round(p.cadence_minutes/60)} h</small></div></div>)}</div>
   <div className="toolbar"><div className="chip-row" role="group" aria-label="Filter by category">{categories.map(c=><button key={c} className={'chip '+(cat===c?'selected':'')} aria-pressed={cat===c} onClick={()=>setCat(c)}>{c} <span>{counts[c]}</span></button>)}</div>
-   <select aria-label="Filter by review status" value={status} onChange={e=>setStatus(e.target.value)}><option value="all">All review states</option><option value="pending">Analyst review pending</option><option value="reviewed">Reviewed</option><option value="corrected">Corrected</option><option value="retracted">Retracted</option><option value="rejected">Rejected</option></select>
+   <select aria-label="Filter by disposition" value={status} onChange={e=>setStatus(e.target.value)}><option value="all">All dispositions</option>{dispositions.map(d=><option key={d} value={d}>{d}</option>)}</select>
    <label className="search-input"><input aria-label="Search the feed" placeholder="Search headlines or publishers…" value={q} onChange={e=>setQ(e.target.value)}/></label></div>
-  {!data.feed.length?<Empty>No items yet. {data.role==='public'?'Public visitors see items only after analyst review.':'Run ingestion from the operations view.'}</Empty>:!items.length?<Empty>No items match these filters.</Empty>:<div className="feed-list">{items.map(f=><FeedCard key={f.id} item={f} role={data.role} reload={reload}/>)}</div>}
+  <TriageSummary data={data}/>
+  {!data.feed.length?<Empty>No items yet. {data.role==='public'?'Public visitors see machine-verified bibliographic leads and human-reviewed items.':'Run ingestion from the operations view.'}</Empty>:!items.length?<Empty>No items match these filters.</Empty>:<div className="feed-list">{items.map(f=><FeedCard key={f.id} item={f} role={data.role} reload={reload}/>)}</div>}
   <Notifications/>
  </>;
 }
 function FeedCard({item:f,role,reload}:{item:FeedItem;role:string;reload:()=>void}){
  const [open,setOpen]=useState(false),[decision,setDecision]=useState('reviewed'),[why,setWhy]=useState(''),[err,setErr]=useState('');
  return <article className="feed-card">
-  <div className="feed-meta"><Badge>{f.category}</Badge><Badge tone={f.status==='pending'?'amber':f.status==='retracted'||f.status==='rejected'?'red':'green'}>{f.status==='pending'?'Analyst review pending':f.status}</Badge><span>{f.publisher}</span><span>Published {date(f.published_at)}</span><span>Ingested {date(f.ingested_at)}</span></div>
+  <div className="feed-meta"><Badge>{f.topic||f.category}</Badge><Badge tone={dispositionTone(f.disposition)}>{f.disposition||'Not yet triaged'}</Badge>{f.disposition==='source-verified metadata lead'&&<Badge tone="blue">Research not adjudicated</Badge>}<span>{f.publisher}</span><span>Published {date(f.published_at)}</span><span>Ingested {date(f.ingested_at)}</span></div>
   <h2><a href={f.canonical_url} target="_blank" rel="noopener noreferrer">{f.title}</a></h2>
   <p>{f.summary}</p>
-  <dl className="feed-facts"><div><dt>What’s new</dt><dd>{f.novelty}</dd></div><div><dt>Research significance</dt><dd>{f.significance}</dd></div><div><dt>Contradictions</dt><dd>{f.contradictions}</dd></div><div><dt>Evidence status</dt><dd>{f.original_source_status}</dd></div><div><dt>Case associations</dt><dd>{f.incident_ids?.length?f.incident_ids.map(a=><Link key={a.id} href={'/cases/'+a.id}>{a.id} <small>({a.status})</small> </Link>):'None suggested'}</dd></div><div><dt>Summary method</dt><dd>{f.summary_method}</dd></div></dl>
+  <dl className="feed-facts"><div><dt>What’s new</dt><dd>{f.novelty}</dd></div><div><dt>Research significance</dt><dd>{f.significance}</dd></div><div><dt>Contradictions</dt><dd>{f.contradictions}</dd></div><div><dt>Evidence status</dt><dd>{f.triage?.evidenceRelation||f.original_source_status}</dd></div><div><dt>Case associations</dt><dd>{f.incident_ids?.length?f.incident_ids.map(a=><Link key={a.id} href={'/cases/'+a.id}>{a.id} <small>({a.status})</small> </Link>):'None suggested'}</dd></div><div><dt>Summary method</dt><dd>{f.summary_method}</dd></div></dl>
+  {f.triage&&<TriageDetail item={f}/>}
   <div className="button-row"><SourceLink href={f.canonical_url}/>{editor(role)&&<button className="button" onClick={()=>setOpen(!open)}>{open?'Cancel review':'Review item'}</button>}</div>
   {open&&<form className="review-form" onSubmit={async e=>{e.preventDefault();try{await post('review',{id:f.id,decision,rationale:why});setOpen(false);reload();}catch(x){setErr(String(x));}}}>
    <label>Decision<select value={decision} onChange={e=>setDecision(e.target.value)}><option value="reviewed">Reviewed — publish as a lead</option><option value="corrected">Corrected</option><option value="retracted">Retracted</option><option value="rejected">Rejected — not relevant</option></select></label>
    <label>Rationale (recorded in the audit log)<textarea required minLength={20} value={why} onChange={e=>setWhy(e.target.value)} placeholder="What was checked against the original source, and why this decision?"/></label>
    <button className="button primary">Record decision</button>{err&&<Note tone="warning">{err}</Note>}</form>}
  </article>;
+}
+function TriageDetail({item:f}:{item:FeedItem}){
+ const t=f.triage!;const due=t.humanRequired?dueDate(f.ingested_at):null;const overdue=due&&Date.parse(due)<Date.now();
+ return <details className="triage"><summary>Workflow: <b>{t.state.replace(/_/g,' ').toLowerCase()}</b>{t.humanRequired&&<> · human review {overdue?<b className="warn">overdue</b>:<>due {date(due)}</>} · owner: unassigned</>}</summary>
+  <ul className="check-list">{t.checks.map(c=><li key={c.id} className={c.pass===true?'pass':c.pass===false?'fail':'skip'}><span aria-hidden="true">{c.pass===true?'✓':c.pass===false?'✗':'–'}</span> {c.label}<small> · {c.detail}</small></li>)}</ul>
+  <p className="small">{t.reasons.join(' ')}</p>
+  <p className="muted small">Stages reached: {t.reached.join(' → ')}. Policy {t.policy}; rule-based and deterministic, so no probability or confidence score is claimed.</p>
+ </details>;
+}
+function TriageSummary({data}:{data:Snapshot}){
+ const counts=data.triageCounts||[];if(!counts.length)return null;const total=counts.reduce((a,c)=>a+c.n,0);
+ return <Panel title="Automated triage" eyebrow={`SOURCE-TO-DECISION PIPELINE · ${POLICY_VERSION}`}>
+  <div className="stat-grid">{counts.map(c=><div key={c.disposition}><span>{c.disposition}</span><strong>{c.n}</strong></div>)}<div><span>total ingested</span><strong>{total}</strong></div></div>
+  <p className="muted small">Each item passes deterministic checks: publisher domain, title, date, persistent identifier, duplicates and privacy. Items that pass become labelled bibliographic leads; they are not evidence and are not human-reviewed. Corrections, physical-material claims and case associations go to a human reviewer (service level {SLA_DAYS} days; no reviewer is assigned yet). Full text is not retrieved because rights are not cleared.</p>
+ </Panel>;
 }
 function Notifications(){
  const [subscriber,setSubscriber]=useState(''),[items,setItems]=useState<{id:string;message:string;canonical_url:string;created_at:string}[]>([]),[cat,setCat]=useState('all'),[msg,setMsg]=useState('');
@@ -92,16 +113,18 @@ function FindingCards({rows,title,status,body,qualify,pointer,next,link}:{rows:R
 type Task={id:string;incident_id:string;title:string;purpose:string;priority:string;state:string;metadata:Record<string,unknown>;updated_at:string};
 const rank=(p:string)=>/critical|^p?1|high/i.test(p)?0:/medium|^p?2|important/i.test(p)?1:2;
 export function Priorities({data,reload}:{data:Snapshot;reload:()=>void}){
- const tasks=data.tasks as Task[];const [focus,setFocus]=useState(''),[view,setView]=useState('roadmap'),[err,setErr]=useState('');
+ const tasks=data.tasks as Task[];const [focus,setFocus]=useState(''),[view,setView]=useState('gapboard'),[err,setErr]=useState('');
  useEffect(()=>{setFocus(param('case')||'');},[]);
+ // Deep links such as /priorities#G007 land on the gap card once the board has rendered.
+ useEffect(()=>{const h=typeof window!=='undefined'?window.location.hash.slice(1):'';if(h)setTimeout(()=>document.getElementById(h)?.scrollIntoView({block:'start'}),50);},[]);
  const events=Object.fromEntries((data.tables.Events||[]).map(e=>[e.EventID,e]));const gaps=data.tables.Unresolved_Gaps_v08||[];
  const shown=useMemo(()=>tasks.filter(x=>!focus||x.incident_id===focus).sort((a,b)=>rank(a.priority)-rank(b.priority)||a.id.localeCompare(b.id)),[tasks,focus]);
  async function move(id:string,state:string){try{setErr('');await post('task',{id,state});reload();}catch(e){setErr(String(e));}}
  return <>
   <SectionHeader label="RESEARCH / PRIORITIES" title="What to investigate next." description="An evidence-gap backlog. Each task names the missing proof-chain link it could close. Priority is a workflow judgement, never a probability that a case is extraterrestrial."/>
   {err&&<Note tone="warning">{err}</Note>}
-  <div className="toolbar"><div className="segmented">{[['roadmap','Research roadmap'],['board','Workflow board'],['list','Ranked list'],['gaps','Evidence gaps']].map(([id,l])=><button key={id} className={view===id?'selected':''} onClick={()=>setView(id)}>{l}</button>)}</div>{focus&&<button className="chip selected" onClick={()=>setFocus('')}>Case {focus} ×</button>}</div>
-  {view==='roadmap'?<Roadmap gaps={gaps}/>:!tasks.length&&view!=='gaps'?<Empty>Sign in to view and manage the research backlog.</Empty>:view==='board'?<div className="board">{taskStates.map(s=><section key={s} className="board-column" aria-label={s}><h2>{s} <span>{shown.filter(x=>x.state===s).length}</span></h2>{shown.filter(x=>x.state===s).map(x=><TaskCard key={x.id} task={x} event={events[x.incident_id]} role={data.role} move={move}/>)}</section>)}</div>
+  <div className="toolbar"><div className="segmented">{[['gapboard','Gap board'],['roadmap','Research roadmap'],['board','Workflow board'],['list','Ranked list'],['gaps','Gap records (v0.8)']].map(([id,l])=><button key={id} className={view===id?'selected':''} onClick={()=>setView(id)}>{l}</button>)}</div>{focus&&<button className="chip selected" onClick={()=>setFocus('')}>Case {focus} ×</button>}</div>
+  {view==='gapboard'?<GapBoard data={data}/>:view==='roadmap'?<Roadmap gaps={gaps}/>:!tasks.length&&view!=='gaps'?<Empty>Sign in to view and manage the research backlog.</Empty>:view==='board'?<div className="board">{taskStates.map(s=><section key={s} className="board-column" aria-label={s}><h2>{s} <span>{shown.filter(x=>x.state===s).length}</span></h2>{shown.filter(x=>x.state===s).map(x=><TaskCard key={x.id} task={x} event={events[x.incident_id]} role={data.role} move={move}/>)}</section>)}</div>
   :view==='list'?<div className="task-list">{shown.map(x=><TaskCard key={x.id} task={x} event={events[x.incident_id]} role={data.role} move={move} wide/>)}</div>
   :<FindingCards rows={gaps} title="Missing item" status="Priority" body="Consequence" qualify="Interpretation guardrail" pointer="GapID" next="Exact next retrieval"/>}
  </>;

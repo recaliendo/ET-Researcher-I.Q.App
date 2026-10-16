@@ -8,11 +8,12 @@ import {theories,codingVariables,isUnknown,pdf,sdt} from '@/lib/psychology';
 import {contingency,historical,historicalTable,verified,reproduces,residuals,leaveOneOut,wilson,fisherExact,requiredN,effectiveWitnesses} from '@/lib/statistics';
 import {sixStage,eightStage,presets6,presets8,chain,mostLeveraged,socialVariables} from '@/lib/proof';
 import {sprintProgress,EXTRACTION,LAB} from '@/lib/progress';
+import {MethodsFirst,ReadinessFunnel,ReproduceRun} from './readiness';
 
 const pct=(x:number,d=1)=>(x*100).toFixed(d)+'%';
 const superscript:Record<string,string>={'-':'⁻','+':'','0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹'};
 const sci=(x:number)=>{if(x>=1e-4)return x.toFixed(4);const [m,e]=x.toExponential(4).split('e');return `${m}×10${[...e].map(c=>superscript[c]??c).join('')}`;};
-function Label({kind}:{kind:'real'|'educational'|'illustrative'}){return kind==='real'?<Badge tone="green">Research result · v0.8</Badge>:kind==='educational'?<Badge tone="blue">Educational demonstration</Badge>:<Badge tone="amber">Illustrative scenario · not evidence</Badge>;}
+function Label({kind}:{kind:'real'|'educational'|'illustrative'|'simulation'}){return kind==='real'?<Badge tone="green">Research result · v0.8</Badge>:kind==='educational'?<Badge tone="blue">Educational demonstration</Badge>:kind==='simulation'?<Badge tone="blue">Simulation · not observed UAP data</Badge>:<Badge tone="amber">Illustrative scenario · not evidence</Badge>;}
 
 /* ───────────── Psychology & Human Perception Lab ───────────── */
 export function Psychology({data}:{data:Snapshot}){
@@ -24,21 +25,25 @@ export function Psychology({data}:{data:Snapshot}){
   <SectionHeader label="RESEARCH / PSYCHOLOGY & PERCEPTION" title="How people see, remember and report." description="Perception and memory science applied to testimony as research variables, never as a diagnosis of any witness."/>
   <Note>Identifying a cognitive mechanism that <em>could</em> affect an account does not show that it <em>did</em>. Each theory below names the record a researcher would need before applying it to a real case.</Note>
   <div className="lab-layout">
-   <nav className="theory-index" aria-label="Theories">{theories.map(x=><button key={x.id} className={x.id===open?'selected':''} aria-pressed={x.id===open} onClick={()=>setOpen(x.id)}><span>{x.psy.join(' · ')||'Source reference'}</span>{x.name}</button>)}</nav>
+   <nav className="theory-index" aria-label="Theories">{theories.map(x=><button key={x.id} className={x.id===open?'selected':''} aria-pressed={x.id===open} onClick={()=>setOpen(x.id)}><span>{x.code} · {x.psy.join(' · ')||'no PSY code'}</span>{x.name}</button>)}</nav>
    <article className="panel theory-detail">
-    <div className="eyebrow">{theory.psy.join(' · ')||'SOURCE REFERENCE · NOT YET CODED'}</div><h2>{theory.name}</h2>
+    <div className="eyebrow">{theory.code} · {theory.psy.length?'v0.8 '+theory.psy.join(' · '):'NO v0.8 PSY CODE · ADDED IN APP'}</div><h2>{theory.name}</h2>
+    <div className="chip-row">{theory.rq.map(r=><Badge key={r} tone="blue">{r}</Badge>)}<Badge>{theory.tier}</Badge></div>
     <p className="large-text">{theory.plain}</p>
     <div className="theory-grid">
      <section><h3>Scientific context</h3><p>{theory.context}</p></section>
      <section><h3>Relevance to UAP testimony</h3><p>{theory.relevance}</p></section>
      <section><h3>Measurable research variables</h3><ul>{theory.variables.map(v=><li key={v}>{v}</li>)}</ul></section>
      <section><h3>Limits on application</h3><p>{theory.limits}</p></section>
+     <section><h3>How it can support or challenge a conclusion</h3><p>{theory.check}</p></section>
+     <section><h3>Generalizability</h3><p>Evidence tier: {theory.tier}. Ordinary perception studies do not by themselves establish a UAP-specific effect; any case application needs the fields listed here.</p></section>
     </div>
     <h3>Original studies</h3>{theory.references.map(r=><p className="reference" key={r.citation}>{r.citation} {r.doi&&<SourceLink href={'https://doi.org/'+r.doi}>doi:{r.doi}</SourceLink>}</p>)}
     <h3>Project codebook mapping</h3>{map.length?map.map(r=><div className="citation" key={r.TheoryID}><strong>{r.TheoryID} · {r['Source principle']}</strong><p>Construct: {r['Potential measurement construct']}. Extract: {r['Data to extract']}.</p><p className="muted">Guardrail: {r['Validity guardrail']}</p></div>):<p className="muted">{theory.psy.length?'Sign in to view the private project codebook mapping.':'Not yet in the project codebook. Adding it needs a PSY code, measurement construct and validity guardrail.'}</p>}
     <h3>Examples from the dataset</h3>{linked.length?<p>{linked.length} coded claims are tagged with this theory, but their first-statement fields are not yet extracted, so no source-supported example can be shown. <Link href="/cases">Inspect the claims</Link></p>:<p className="muted">No source-supported example in the accessible corpus.</p>}
    </article>
   </div>
+  <TheoryCrosswalk/>
   <div className="two-columns"><SdtDemo/><IndependenceDemo/></div>
   <WitnessIndependence data={data}/>
   <Panel title="What the claim records actually contain" eyebrow="CODING COMPLETENESS · REAL DATA" action={<Label kind="real"/>}>
@@ -46,21 +51,27 @@ export function Psychology({data}:{data:Snapshot}){
   </Panel>
  </>;
 }
+function TheoryCrosswalk(){
+ return <Panel title="Theory crosswalk" eyebrow="APP CODE → v0.8 CODEBOOK → RESEARCH QUESTION"><details><summary>Show all {theories.length} theories with their codes</summary>
+  <div className="table-wrap" tabIndex={0} role="region" aria-label="Scrollable table"><table><thead><tr><th>App code</th><th>Theory</th><th>v0.8 PSY codes</th><th>Research questions</th><th>Evidence tier</th></tr></thead><tbody>{theories.map(x=><tr key={x.code}><td>{x.code}</td><td>{x.name}</td><td>{x.psy.join(', ')||'None (added in app)'}</td><td>{x.rq.join(', ')}</td><td><small>{x.tier}</small></td></tr>)}</tbody></table></div>
+  <p className="muted small">Each app code is unique and never reused. Several app theories can map to the same PSY code (for example PSY12 covers misinformation and conformity); the mapping is explicit rather than implied.</p></details></Panel>;
+}
 function SdtDemo(){
  const [d,setD]=useState(1.5),[c,setC]=useState(.5);const {hit,falseAlarm}=sdt(d,c);
  const xs=Array.from({length:121},(_,i)=>-4+i*(8/120));const X=(x:number)=>20+(x+4)*45;const Y=(y:number)=>150-y*300;
  const curve=(mu:number)=>xs.map((x,i)=>`${i?'L':'M'}${X(x).toFixed(1)},${Y(pdf(x,mu)).toFixed(1)}`).join(' ');
- return <Panel title="Seeing versus saying “yes”" eyebrow="SIGNAL DETECTION" action={<Label kind="educational"/>}>
+ return <Panel title="Seeing versus saying “yes”" eyebrow="SIGNAL DETECTION · TH01" action={<Label kind="simulation"/>}>
   <p className="muted small">Two overlapping distributions: ordinary objects (noise) and the thing being looked for (signal). Move the sliders to see how viewing conditions and willingness to report change hits and false alarms.</p>
   <svg viewBox="0 0 400 170" className="chart" role="img" aria-label={`Hit rate ${pct(hit)}, false alarm rate ${pct(falseAlarm)}`}><path d={curve(-d/2)} className="curve-noise"/><path d={curve(d/2)} className="curve-signal"/><line x1={X(c)} x2={X(c)} y1="20" y2="155" className="criterion"/><text x={X(c)+4} y="30" className="chart-label">report “yes” →</text><text x="24" y="166" className="chart-label">ordinary</text><text x="330" y="166" className="chart-label">target</text></svg>
   <label className="slider">Viewing conditions (d′ = {d.toFixed(1)})<input type="range" min="0" max="4" step=".1" value={d} onChange={e=>setD(+e.target.value)}/></label>
   <label className="slider">Reporting threshold (criterion = {c.toFixed(1)})<input type="range" min="-2" max="2.5" step=".1" value={c} onChange={e=>setC(+e.target.value)}/></label>
   <div className="stat-pair"><div><strong>{pct(hit)}</strong><span>targets reported</span></div><div><strong>{pct(falseAlarm)}</strong><span>ordinary objects reported</span></div></div>
+  <p className="muted small">Assumptions: equal-variance normal distributions; values are invented for teaching. To apply this to a real case the codebook needs viewing conditions, the base rate of ordinary objects, and known target/noise trials; none exists for any case in the corpus.</p>
  </Panel>;
 }
 function IndependenceDemo(){
  const [n,setN]=useState(6),[rho,setRho]=useState(.3);const eff=effectiveWitnesses(n,rho);
- return <Panel title="Why more witnesses is not more evidence" eyebrow="WITNESS INDEPENDENCE" action={<Label kind="educational"/>}>
+ return <Panel title="Why more witnesses is not more evidence" eyebrow="WITNESS INDEPENDENCE · TH10" action={<Label kind="simulation"/>}>
   <p className="muted small">If witnesses share information before their first statements, their accounts overlap. The effective number of independent accounts shrinks as sharing (ρ) grows.</p>
   <div className="dots" role="img" aria-label={`${n} witnesses equal about ${eff.toFixed(1)} independent accounts`}>{Array.from({length:n},(_,i)=><span key={i} className={i<Math.round(eff)?'dot solid':'dot'}/>)}</div>
   <label className="slider">Witnesses reporting ({n})<input type="range" min="1" max="20" value={n} onChange={e=>setN(+e.target.value)}/></label>
@@ -88,8 +99,10 @@ export function StatisticsLab({data}:{data:Snapshot}){
  const reasons=Object.entries(eligibility.reduce<Record<string,number>>((a,r)=>{const k=r['Inferential inclusion reason']||'Not recorded';a[k]=(a[k]||0)+1;return a;},{}));
  return <>
   <SectionHeader label="RESEARCH / STATISTICAL LAB" title="Show the numbers. Show their limits." description="Live, reproducible calculations on the actual published counts, kept apart from educational sandboxes and blocked analyses."/>
+  <MethodsFirst/>
   <div className="rq-status"><article className="panel blocked-card"><Lock size={20}/><div><div className="eyebrow">PRIMARY TEST · RQ1 · PROTOCOL STATUS: BLOCKED</div><h2>Not yet testable</h2><p>Does separately acquired firsthand testimony predict independently authenticated objective corroboration? No event-level table of independent first statements against authenticated corroboration exists. No p-value is issued.</p><RQ1Progress data={data}/></div></article>
    <article className="panel"><div className="eyebrow">SECONDARY TEST · EXECUTED</div><h2>GEIPAN era × category D</h2><p>An association between the decade of investigation and whether GEIPAN classified a case as D (unexplained after investigation). It describes classification history, not extraterrestrial likelihood.</p></article></div>
+  <ReadinessFunnel data={data}/>
   <Panel title="Verified result: historical GEIPAN classification by era" eyebrow="SECONDARY · EXPLORATORY REANALYSIS" action={<Label kind="real"/>}>
    <div className="result-strip">{[['n',verified.n.toLocaleString()],['Pearson χ²('+result.df+')',result.chi2.toFixed(2)],['p',sci(result.p)],['Cramér’s V',result.v.toFixed(3)],['Bootstrap 95% CI for V',verified.bootstrapCI.map(x=>x.toFixed(3)).join('–')]].map(([k,v])=><div key={k}><span>{k}</span><strong>{v}</strong></div>)}</div>
    <Note tone={ok?'success':'warning'}>{ok?'✓ Recomputed live in this browser and matches the v0.8 package (χ² = 77.81085, p = 1.0113×10⁻¹⁴, V = 0.19879).':'The live calculation does not match the package values. Treat this result as unverified.'} The bootstrap interval comes from the package’s Python run ({verified.bootstrapResamples.toLocaleString()} resamples, seed {verified.seed}).</Note>
@@ -98,6 +111,7 @@ export function StatisticsLab({data}:{data:Snapshot}){
    <div className="theory-grid"><section><h3>Assumptions checked</h3><ul><li>Minimum expected cell {result.minimumExpected.toFixed(2)} (&gt; 5)</li><li>Each case counted once in the original paper</li><li>No continuity correction (7×2 table)</li></ul></section><section><h3>Interpretation</h3><p>V ≈ 0.2 is a small-to-moderate association. Later eras have fewer D classifications, consistent with changing investigation methods and definitions (gap G009). It is not causation and not a measure of extraterrestrial likelihood.</p></section><section><h3>C is not D</h3><p>GEIPAN category C means <em>insufficient information</em> to conclude. Category D means <em>unexplained after investigation</em> with adequate data. This table compares D against all non-D (A, B and C together). It never merges C into D.</p></section></div>
    <div className="button-row"><button className="button" onClick={()=>download('geipan-era-v08-reanalysis.json',{source:verified.source,periods:historical.periods,table,result,residuals:res,verifiedAgainst:verified,reproduced:ok,generated:new Date().toISOString(),caution:'Secondary classification-process association; not ET likelihood.'})}><Download size={15}/> Export calculation</button><SourceLink href={verified.source}>Laurent et al. source table</SourceLink></div>
   </Panel>
+  <ReproduceRun/>
   <Panel title="Sensitivity: drop one era at a time" eyebrow="ROBUSTNESS" action={<Label kind="real"/>}>
    <div className="table-wrap" tabIndex={0} role="region" aria-label="Scrollable table"><table><thead><tr><th>Era omitted</th><th>n</th><th>χ²</th><th>df</th><th>p</th><th>V</th></tr></thead><tbody>{sens.map(s=><tr key={s.omitted}><td>{s.omitted}</td><td>{s.n}</td><td>{s.chi2.toFixed(2)}</td><td>{s.df}</td><td>{sci(s.p)}</td><td>{s.v.toFixed(3)}</td></tr>)}</tbody></table></div>
    <p className="muted small">The association persists after omitting any single era, so no one decade drives it alone. It does not rule out definitional changes across eras.</p>

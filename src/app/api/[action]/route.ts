@@ -2,7 +2,9 @@ import {NextResponse} from 'next/server';
 import {database,audit} from '@/lib/db';
 import {researchSnapshot,taskStates} from '@/lib/research';
 import {roleFor,requireRole,sessionCookie} from '@/lib/auth';
-import {seedProviders,ingest} from '@/lib/ingestion';
+import {seedProviders,ingest,retriage} from '@/lib/ingestion';
+import {POLICY_VERSION} from '@/lib/triage';
+import {funnel,fingerprint} from '@/lib/funnel';
 import {ask} from '@/lib/assistant';
 import {hash} from '@/lib/importer';
 import {contingency} from '@/lib/statistics';
@@ -16,7 +18,17 @@ export async function GET(req:Request,{params}:Context){try{
  // Aggregate counts only (no record content); the same totals are published in docs/SOURCE_LINEAGE.md.
  if(action==='health'){const c=(await db.query<Record<string,number>>("SELECT (SELECT count(*) FROM imports)::int AS imports,(SELECT count(*) FROM records)::int AS records,(SELECT count(DISTINCT collection) FROM records)::int AS collections,(SELECT count(*) FROM incidents)::int AS incidents,(SELECT count(*) FROM feed_items)::int AS feed_items,(SELECT count(*) FROM providers WHERE last_success IS NOT NULL)::int AS providers_synced")).rows[0];return json({ok:true,database:{ok:1},counts:c,time:new Date().toISOString()});}
  if(action==='data'){
-  await seedProviders(db);return json({role,tables:await researchSnapshot(priv),feed:(await db.query("SELECT f.*,p.name AS publisher FROM feed_items f JOIN providers p ON p.id=f.provider_id WHERE $1 OR f.status IN ('reviewed','corrected','retracted') ORDER BY published_at DESC NULLS LAST LIMIT 200",[priv])).rows,
+  await seedProviders(db);
+  // Backfill items triaged under an older policy (cheap check first; retriage is idempotent).
+  if((await db.query('SELECT 1 FROM feed_items WHERE policy_version IS DISTINCT FROM $1 LIMIT 1',[POLICY_VERSION])).rows.length)await retriage(db);
+  const tables=await researchSnapshot(priv);
+  // Public visitors see human-reviewed items plus machine-verified bibliographic leads (clearly labelled as such).
+  const feed=(await db.query<{id:string;disposition:string|null}>("SELECT f.*,p.name AS publisher FROM feed_items f JOIN providers p ON p.id=f.provider_id WHERE $1 OR f.status IN ('reviewed','corrected','retracted') OR f.disposition='source-verified metadata lead' ORDER BY published_at DESC NULLS LAST LIMIT 200",[priv])).rows;
+  let snapshots:unknown[]=[];
+  if(priv){const stages=funnel(tables,feed);await db.query('INSERT INTO readiness_snapshots(id,fingerprint,stages) VALUES($1,$2,$3) ON CONFLICT(fingerprint) DO NOTHING',[crypto.randomUUID(),fingerprint(stages),JSON.stringify(stages.map(s=>({key:s.key,title:s.title,operational:s.operational?.value??null,evidence:s.evidence.value,of:s.evidence.of??null})))]);
+   snapshots=(await db.query('SELECT fingerprint,stages,created_at FROM readiness_snapshots ORDER BY created_at DESC LIMIT 20')).rows;}
+  const triageCounts=(await db.query("SELECT coalesce(disposition,'untriaged') AS disposition,count(*)::int AS n FROM feed_items GROUP BY 1 ORDER BY 2 DESC")).rows;
+  return json({role,tables,feed,snapshots,triageCounts,
    providers:(await db.query('SELECT * FROM providers ORDER BY name')).rows,
    tasks:priv?(await db.query('SELECT * FROM tasks ORDER BY priority,id')).rows:[],
    imports:priv?(await db.query('SELECT * FROM imports ORDER BY filename')).rows:[],
@@ -40,6 +52,7 @@ export async function POST(req:Request,{params}:Context){try{
  if(action==='login'){const b=z.object({token:z.string().min(32).max(256)}).parse(body);const test=new Request(req.url,{headers:{authorization:'Bearer '+b.token}});const role=roleFor(test);if(role==='public')throw new Error('FORBIDDEN');const res=json({role});res.cookies.set('et_session',sessionCookie(role),{httpOnly:true,secure:new URL(req.url).protocol==='https:',sameSite:'strict',path:'/',maxAge:28800});return res;}
  if(action==='logout'){const res=json({ok:true});res.cookies.delete('et_session');return res;}
  if(action==='ingest'){requireRole(req,'admin');return json(await ingest(db));}
+ if(action==='retriage'){requireRole(req,'admin');return json(await retriage(db,true));}
  if(action==='cron'){const token=process.env.CRON_TOKEN;if(!token||token.length<32||req.headers.get('authorization')!=='Bearer '+token)throw new Error('FORBIDDEN');return json(await ingest(db));}
  if(action==='ask'){requireRole(req,'reader');const b=z.object({question:z.string().min(3).max(1000)}).parse(body);return json(await ask(b.question,true));}
  if(action==='analysis'){
@@ -49,9 +62,9 @@ export async function POST(req:Request,{params}:Context){try{
  }
  if(action==='task'){const role=requireRole(req,'editor');const b=z.object({id:z.string().max(100),state:z.enum(taskStates)}).parse(body);await db.transaction(async tx=>{const before=(await tx.query('SELECT state FROM tasks WHERE id=$1',[b.id])).rows[0];if(!before)throw new Error('Task not found');await tx.query('UPDATE tasks SET state=$2,updated_at=now() WHERE id=$1',[b.id,b.state]);await audit(tx,role,'task-transition',b.id,{before,after:b.state});});return json({ok:true});}
  if(action==='review'){const role=requireRole(req,'editor');const b=z.object({id:z.string().max(100),decision:z.enum(['reviewed','rejected','corrected','retracted']),rationale:z.string().min(20).max(4000)}).parse(body);
-  await db.transaction(async tx=>{const item=(await tx.query<{title:string;category:string}>('SELECT title,category FROM feed_items WHERE id=$1',[b.id])).rows[0];if(!item)throw new Error('Item not found');await tx.query('INSERT INTO review_decisions(id,item_id,actor,decision,rationale) VALUES($1,$2,$3,$4,$5)',[crypto.randomUUID(),b.id,role,b.decision,b.rationale]);await tx.query('UPDATE feed_items SET status=$2 WHERE id=$1',[b.id,b.decision]);await audit(tx,role,'review',b.id,b);
+  await db.transaction(async tx=>{const item=(await tx.query<{title:string;category:string}>('SELECT title,category FROM feed_items WHERE id=$1',[b.id])).rows[0];if(!item)throw new Error('Item not found');await tx.query('INSERT INTO review_decisions(id,item_id,actor,decision,rationale) VALUES($1,$2,$3,$4,$5)',[crypto.randomUUID(),b.id,role,b.decision,b.rationale]);await tx.query('UPDATE feed_items SET status=$2,policy_version=NULL WHERE id=$1',[b.id,b.decision]);await audit(tx,role,'review',b.id,b);
    const subs=(await tx.query<{id:string}>('SELECT id FROM subscriptions WHERE category=$1 OR category=$2',[item.category,'all'])).rows;
-   for(const s of subs)await tx.query('INSERT INTO notifications(id,subscription_id,item_id,message) VALUES($1,$2,$3,$4) ON CONFLICT(subscription_id,item_id) DO UPDATE SET message=excluded.message,created_at=now()',[crypto.randomUUID(),s.id,b.id,`${b.decision}: ${item.title}. ${b.rationale}`]);});return json({ok:true});
+   for(const s of subs)await tx.query('INSERT INTO notifications(id,subscription_id,item_id,message) VALUES($1,$2,$3,$4) ON CONFLICT(subscription_id,item_id) DO UPDATE SET message=excluded.message,created_at=now()',[crypto.randomUUID(),s.id,b.id,`${b.decision}: ${item.title}. ${b.rationale}`]);});await retriage(db);return json({ok:true});
  }
  if(action==='provider'){requireRole(req,'admin');const b=z.object({id:z.string(),enabled:z.boolean(),cadence:z.number().int().min(60).max(10080)}).parse(body);await db.query('UPDATE providers SET enabled=$2,cadence_minutes=$3 WHERE id=$1',[b.id,b.enabled,b.cadence]);await audit(db,'admin','provider-config',b.id,b);return json({ok:true});}
  if(action==='publish'){const role=requireRole(req,'admin');const b=z.object({collection:z.string().regex(/^[A-Za-z0-9_]{1,80}$/),publication:z.enum(['public','private'])}).parse(body);await db.transaction(async tx=>{const r=await tx.query('UPDATE records SET publication=$2 WHERE collection=$1 RETURNING id',[b.collection,b.publication]);if(!r.rows.length)throw new Error('Collection not found');await audit(tx,role,'publication-change',b.collection,{...b,records:r.rows.length});});return json({ok:true});}

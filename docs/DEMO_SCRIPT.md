@@ -21,10 +21,12 @@ Audience: engineers and product leaders. Theme: **a research product that refuse
 
 ## 2. Statistical lab: real numbers, honest limits (2 min)
 
-- RQ1 card: **Not yet testable** (protocol status BLOCKED) with progress bars. Explain the gate: no p-value until an eligible, independently coded dataset exists.
+- **Methods before data**: the RQ1 protocol (unit, exposure, outcome, estimand, decision rule) is written down before any data exist, and labelled *not preregistered*.
+- RQ1 card: **Not yet testable** (protocol status BLOCKED). Then the **readiness funnel**: each stage shows operational work beside evidence that passed a gate. Open stage d: 21/24 statements located by AI, 0 from a primary source. *"Progress is real, and we never let it masquerade as evidence."*
 - GEIPAN result recomputed live in the browser: χ²(6) = 77.81, p ≈ 1.01×10⁻¹⁴, V ≈ 0.199, with the green ✓ that it matches the published package.
 - Point out: *"Significant, and still not evidence of anything extraterrestrial. It's about how classification changed by era."* Show the leave-one-out table and the C ≠ D explanation.
-- Power planner: drag w from 0.2 to 0.1 and watch N go from 197 to 785.
+- Click **Re-run now**: 20,000 bootstrap resamples in the browser reproduce the published interval and produce a checksummed manifest.
+- Power planner: drag w from 0.2 to 0.1 and watch N go from 197 to 785; the clustering adjustment turns 197 into 276.
 
 ## 3. Case explorer: provenance you can inspect (2 min)
 
@@ -45,9 +47,11 @@ Audience: engineers and product leaders. Theme: **a research product that refuse
 
 ## 6. Live intelligence and governance (2 min)
 
-- Six real sources on provider-specific schedules; every item **Analyst review pending** until a human records a rationale.
+- Six real sources on provider-specific schedules. **Automated triage** runs deterministic checks (publisher domain, DOI, date, duplicates, privacy). Passing items become *source-verified metadata leads · research not adjudicated*; corrections, material claims and case links go to a human. Open a card's **Workflow** line to show every check.
 - Research assistant: ask *"Which investigations have the most consequential custody gaps?"* Answers cite retrieved records and state their uncertainty.
 - Operations: provider health, audit log, and the **Publication boundary** (staged changes, confirmation, stale-save protection). Witness data stays access-restricted; publishing a collection changes visibility, not scientific validation.
+
+- **Research priorities → Gap board**: G001–G012 with acceptance criteria, work actually performed, and statuses that are never rounded up (completed, in progress, blocked, externally required, not started).
 
 ## 7. Close (1 min)
 

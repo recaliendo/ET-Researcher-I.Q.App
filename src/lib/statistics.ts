@@ -44,3 +44,19 @@ function normalQuantile(p:number){
 export function requiredN(w:number,power=.8,alpha=.05){if(!(w>0&&w<=1&&power>.5&&power<1&&alpha>0&&alpha<.5))throw new Error('Invalid planning inputs');return Math.ceil((normalQuantile(1-alpha/2)+normalQuantile(power))**2/(w*w));}
 // Effective number of independent accounts under average pairwise dependence rho (design-effect identity). Educational only.
 export function effectiveWitnesses(n:number,rho:number){if(n<1||rho<0||rho>1)throw new Error('Invalid inputs');return n/(1+(n-1)*rho);}
+// Seeded PRNG (mulberry32) so a browser or server re-run is exactly repeatable for a given seed.
+export function mulberry32(seed:number){let a=seed>>>0;return ()=>{a=(a+0x6D2B79F5)>>>0;let t=a;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return ((t^(t>>>14))>>>0)/4294967296;};}
+// Nonparametric bootstrap of Cramér's V: resample the n cases with replacement (multinomial over cells).
+// An independent re-run: different RNG from the package's Python run, so it should agree within Monte Carlo error, not exactly.
+export function bootstrapV(table:number[][],resamples=20000,seed=20261015){
+ const cells=table.flat(),n=cells.reduce((a,b)=>a+b,0),cum:number[]=[];let s=0;for(const c of cells){s+=c/n;cum.push(s);}
+ const rand=mulberry32(seed),vs:number[]=[];const rows=table.length;
+ for(let b=0;b<resamples;b++){
+  const counts=new Array(cells.length).fill(0);
+  for(let i=0;i<n;i++){const u=rand();let k=0;while(k<cum.length-1&&u>cum[k])k++;counts[k]++;}
+  const t=Array.from({length:rows},(_,i)=>[counts[2*i],counts[2*i+1]]);
+  try{vs.push(contingency(t.filter(r=>r[0]+r[1]>0)).v);}catch{/* a resample with an empty column has no defined V; skipped and counted */}
+ }
+ vs.sort((a,b)=>a-b);const q=(p:number)=>vs[Math.min(vs.length-1,Math.max(0,Math.round(p*(vs.length-1))))];
+ return {ci:[q(.025),q(.975)] as [number,number],resamples,valid:vs.length,seed,method:'percentile; multinomial resampling of cases; mulberry32 PRNG'};
+}

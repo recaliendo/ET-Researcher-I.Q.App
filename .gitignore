@@ -22,3 +22,8 @@ __pycache__/
 .DS_Store
 *.log
 .claude/
+
+# Local working material (not for the public repo)
+/*.mp4
+/ETIQ_Research_Engineering_Uplift_Prompt.md
+/public/axe-temp.min.js

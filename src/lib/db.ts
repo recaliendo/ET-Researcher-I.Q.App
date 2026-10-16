@@ -1,6 +1,6 @@
 import { PGlite } from '@electric-sql/pglite';
 import { Pool } from 'pg';
-import { readFile, mkdir } from 'node:fs/promises';
+import { readFile, readdir, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { drizzle as localDrizzle } from 'drizzle-orm/pglite';
@@ -18,7 +18,9 @@ let pending:Promise<Database>|undefined;
 export async function connect(location?:string):Promise<Database> {
   const url=location ?? process.env.DATABASE_URL;
   let db:Database;
-  const schema=await readFile(path.join(process.cwd(),'db','001_initial.sql'),'utf8');
+  // Every db/NNN_*.sql file runs in order on startup; each must be idempotent (IF NOT EXISTS).
+  const dir=path.join(process.cwd(),'db');
+  const schema=(await Promise.all((await readdir(dir)).filter(f=>/^\d{3}_.*\.sql$/.test(f)).sort().map(f=>readFile(path.join(dir,f),'utf8')))).join('\n');
   if(url?.startsWith('postgres')) {
     const pool=new Pool({connectionString:url,max:8});
     // Several server entry points can start at once; serialize CREATE IF NOT EXISTS, which races in PostgreSQL.

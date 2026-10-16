@@ -1,6 +1,7 @@
 import { XMLParser } from 'fast-xml-parser';
 import { Database,audit } from './db';
 import { hash } from './importer';
+import { triage,POLICY_VERSION } from './triage';
 export type Provider={id:string;name:string;url:string;kind:string;cadence_minutes:number;last_success?:string;last_error?:string;failures:number;etag?:string;modified?:string;enabled:boolean;next_attempt?:string;policy_url:string;license_note:string};
 export const providerSeeds=[
  {id:'nasa',name:'NASA · science & official releases',url:'https://www.nasa.gov/feed/',kind:'rss',cadence:360,policy:'https://www.nasa.gov/rss-feeds/'},
@@ -56,11 +57,27 @@ export async function storeItems(db:Database,p:Provider,items:Item[],retrievalId
   const novelty=existing?'Publisher metadata changed; review reset':repeat?'Matching headline already ingested; possible repeated report':'New to this feed. Originality and independence not yet assessed.';
   await db.query(`INSERT INTO feed_items(id,provider_id,canonical_url,title,published_at,content_hash,metadata,category,summary,summary_method,novelty,significance,incident_ids)
    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
-   ON CONFLICT(id) DO UPDATE SET title=excluded.title,published_at=excluded.published_at,content_hash=excluded.content_hash,metadata=excluded.metadata,status='pending',novelty=excluded.novelty,summary=excluded.summary`,
+   ON CONFLICT(id) DO UPDATE SET title=excluded.title,published_at=excluded.published_at,content_hash=excluded.content_hash,metadata=excluded.metadata,status='pending',novelty=excluded.novelty,summary=excluded.summary,policy_version=NULL`,
    [id,p.id,url,item.title,item.date,contentHash,JSON.stringify(item),categoryFor(item.title,p.id),`${item.publisher||p.name} lists “${item.title}”${item.type?` (${item.type})`:''}. ${queryMatched?'Matched by the provider’s own full-text search; the title may not name UAP. ':''}Metadata discovery only; underlying evidence has not been adjudicated.`,'Deterministic metadata summary (not AI)',novelty,'Potential research lead; retrieve the original document and compare provenance before drawing conclusions.',JSON.stringify(associations)]);
   await db.query('INSERT INTO feed_versions(id,item_id,retrieval_id,content_hash,metadata) VALUES($1,$2,$3,$4,$5)',[crypto.randomUUID(),id,retrievalId,contentHash,JSON.stringify(item)]);
   if(!existing)added++;
  }return added;
+}
+// Apply the current triage policy to every item whose stored policy is older (or missing). Idempotent.
+// The earliest item with the same title and publication day is the original; later ones are possible duplicates.
+// (Title alone is not enough: generic notices such as "Comment Request" share titles across distinct documents.)
+export async function retriage(db:Database,force=false){
+ const rows=(await db.query<{id:string;provider_id:string;canonical_url:string;title:string;published_at:string|Date|null;metadata:Record<string,string>;status:string;incident_ids:unknown[];policy_version:string|null}>('SELECT id,provider_id,canonical_url,title,published_at,metadata,status,incident_ids,policy_version FROM feed_items ORDER BY ingested_at,id')).rows;
+ const first=new Map<string,string>();let changed=0;const tally:Record<string,number>={};
+ for(const r of rows){
+  const key=r.title.toLowerCase().replace(/\s+/g,' ').trim()+'|'+(r.published_at?new Date(r.published_at).toISOString().slice(0,10):'undated');const dup=first.get(key)??null;if(!dup)first.set(key,r.id);
+  if(!force&&r.policy_version===POLICY_VERSION)continue;
+  const t=triage({provider:r.provider_id,url:r.canonical_url,title:r.title,published_at:r.published_at?new Date(r.published_at).toISOString():null,publisher:r.metadata?.publisher,type:r.metadata?.type,duplicateOf:dup,caseSuggestions:Array.isArray(r.incident_ids)?r.incident_ids.length:0,status:r.status});
+  await db.query('UPDATE feed_items SET workflow_state=$2,disposition=$3,topic=$4,triage=$5,policy_version=$6 WHERE id=$1',[r.id,t.state,t.disposition,t.topic,JSON.stringify(t),POLICY_VERSION]);
+  changed++;tally[t.disposition]=(tally[t.disposition]||0)+1;
+ }
+ if(changed)await audit(db,'triage-policy','retriage','feed_items',{policy:POLICY_VERSION,changed,tally});
+ return {policy:POLICY_VERSION,changed,tally};
 }
 export async function ingest(db:Database,fetcher=boundedFetch){
  await seedProviders(db);
@@ -80,6 +97,6 @@ export async function ingest(db:Database,fetcher=boundedFetch){
   });
  }catch(e){const message=e instanceof Error?e.message:'Unknown retrieval error';await db.query('INSERT INTO retrievals(id,provider_id,error) VALUES($1,$2,$3)',[rid,p.id,message]);
   await db.query("UPDATE providers SET failures=failures+1,last_error=$2,next_attempt=now()+($3 * interval '1 minute') WHERE id=$1",[p.id,message,Math.min(1440,60*2**p.failures)]);results.push({provider:p.id,status:'failed',error:message});
- }}await audit(db,'scheduler','ingest','providers',results);
+ }}await retriage(db);await audit(db,'scheduler','ingest','providers',results);
  }finally{await db.query("DELETE FROM job_leases WHERE id='ingestion'");}return {busy:false,results};
 }
