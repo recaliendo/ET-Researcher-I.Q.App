@@ -7,6 +7,7 @@ import {Badge,Empty,More,Note,Panel,RecordList,SectionHeader,SourceLink,download
 import {theories,codingVariables,isUnknown,pdf,sdt} from '@/lib/psychology';
 import {contingency,historical,historicalTable,verified,reproduces,residuals,leaveOneOut,wilson,fisherExact,requiredN,effectiveWitnesses} from '@/lib/statistics';
 import {sixStage,eightStage,presets6,presets8,chain,mostLeveraged,socialVariables} from '@/lib/proof';
+import {sprintProgress,EXTRACTION,LAB} from '@/lib/progress';
 
 const pct=(x:number,d=1)=>(x*100).toFixed(d)+'%';
 const superscript:Record<string,string>={'-':'⁻','+':'','0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹'};
@@ -41,7 +42,7 @@ export function Psychology({data}:{data:Snapshot}){
   <div className="two-columns"><SdtDemo/><IndependenceDemo/></div>
   <WitnessIndependence data={data}/>
   <Panel title="What the claim records actually contain" eyebrow="CODING COMPLETENESS · REAL DATA" action={<Label kind="real"/>}>
-   {coding.length?<><p className="muted small">Share of the {coding.length} imported claim rows with a documented value for each cognitive variable. Unknown stays unknown; nothing is imputed.</p><div className="bars">{codingVariables.map(v=>{const known=coding.filter(r=>!isUnknown(r[v])).length;return <div className="bar-row" key={v}><span>{v}</span><div className="bar-track" role="img" aria-label={`${v}: ${known} of ${coding.length} documented`}><div className="bar-fill" style={{width:pct(known/coding.length)}}/></div><b>{known}/{coding.length}</b></div>;})}</div><Note tone="warning">RQ2 (does agreement survive memory and contamination controls?) remains BLOCKED until these fields are extracted from original statements.</Note></>:<Empty>Sign in to view claim-level coding coverage.</Empty>}
+   {coding.length?<><p className="muted small">Share of the {coding.length} imported claim rows with a documented value for each cognitive variable. Unknown stays unknown; nothing is imputed.</p><div className="bars">{codingVariables.map(v=>{const known=coding.filter(r=>!isUnknown(r[v])).length;const ai=(t[EXTRACTION]||[]).filter(r=>v in r&&!isUnknown(r[v])&&!/^unknown|^not (found|extracted)/i.test(r[v])).length;return <div className="bar-row" key={v}><span>{v}</span><div className="bar-track stacked" role="img" aria-label={`${v}: ${known} human-coded and ${ai} AI-extracted of ${coding.length}`}><div className="bar-fill" style={{width:pct(known/coding.length)}}/><div className="bar-fill ai" style={{width:pct(Math.min(ai,coding.length-known)/coding.length)}}/></div><b>{known}{ai?<small className="ai-count"> +{ai}</small>:null}/{coding.length}</b></div>;})}</div>{(t[EXTRACTION]||[]).length>0&&<p className="legend small"><span className="swatch"/> human-coded (v0.8) <span className="swatch ai"/> AI-extracted from cited public sources (v09, awaiting second human coder; not counted as coded)</p>}<Note tone="warning">RQ2 (does agreement survive memory and contamination controls?) remains BLOCKED until these fields are extracted from original statements.</Note></>:<Empty>Sign in to view claim-level coding coverage.</Empty>}
   </Panel>
  </>;
 }
@@ -87,7 +88,7 @@ export function StatisticsLab({data}:{data:Snapshot}){
  const reasons=Object.entries(eligibility.reduce<Record<string,number>>((a,r)=>{const k=r['Inferential inclusion reason']||'Not recorded';a[k]=(a[k]||0)+1;return a;},{}));
  return <>
   <SectionHeader label="RESEARCH / STATISTICAL LAB" title="Show the numbers. Show their limits." description="Live, reproducible calculations on the actual published counts, kept apart from educational sandboxes and blocked analyses."/>
-  <div className="rq-status"><article className="panel blocked-card"><Lock size={20}/><div><div className="eyebrow">PRIMARY TEST · RQ1</div><h2>BLOCKED</h2><p>Does separately acquired firsthand testimony predict independently authenticated objective corroboration? No event-level table of independent first statements against authenticated corroboration exists. No p-value is issued.</p></div></article>
+  <div className="rq-status"><article className="panel blocked-card"><Lock size={20}/><div><div className="eyebrow">PRIMARY TEST · RQ1</div><h2>BLOCKED</h2><p>Does separately acquired firsthand testimony predict independently authenticated objective corroboration? No event-level table of independent first statements against authenticated corroboration exists. No p-value is issued.</p><RQ1Progress data={data}/></div></article>
    <article className="panel"><div className="eyebrow">SECONDARY TEST · EXECUTED</div><h2>GEIPAN era × category D</h2><p>An association between the decade of investigation and whether GEIPAN classified a case as D (unexplained after investigation). It describes classification history, not extraterrestrial likelihood.</p></article></div>
   <Panel title="Verified result: historical GEIPAN classification by era" eyebrow="SECONDARY · EXPLORATORY REANALYSIS" action={<Label kind="real"/>}>
    <div className="result-strip">{[['n',verified.n.toLocaleString()],['Pearson χ²('+result.df+')',result.chi2.toFixed(2)],['p',sci(result.p)],['Cramér’s V',result.v.toFixed(3)],['Bootstrap 95% CI for V',verified.bootstrapCI.map(x=>x.toFixed(3)).join('–')]].map(([k,v])=><div key={k}><span>{k}</span><strong>{v}</strong></div>)}</div>
@@ -105,6 +106,10 @@ export function StatisticsLab({data}:{data:Snapshot}){
    <Panel title="Blocked analyses" eyebrow="NOT RUN, WITH REASONS">{(t.Blocked_Tests_v03||[]).length?<RecordList rows={t.Blocked_Tests_v03} titleKey="Analysis"/>:<Empty>Sign in to view blocked-analysis records.</Empty>}</Panel></div>
   <div className="two-columns"><PowerPlanner rows={t.Power_v08||[]}/><Sandbox/></div>
  </>;
+}
+function RQ1Progress({data}:{data:Snapshot}){
+ const p=sprintProgress(data.tables);const n=requiredN(.2,.8);
+ return <div className="progress-lines"><div><span>Eligible independent incidents</span><b>0 / {n}</b></div><div className="bar-track"><div className="bar-fill amber" style={{width:'0.5%'}}/></div>{p.available&&<><div><span>Seed claims with located first statement (AI, unreviewed)</span><b>{p.summary.located} / {p.summary.claims}</b></div><div className="bar-track"><div className="bar-fill ai" style={{width:pct(p.summary.located/Math.max(1,p.summary.claims))}}/></div><div><span>Human-adjudicated</span><b>{p.summary.reviewed} / {p.summary.claims}</b></div></>}<p className="muted small">Unblocks when ≥100 incidents are fully adjudicated by two blinded coders (roadmap Phases 2–5), then ≈{n} for 80% power at w = 0.2.</p></div>;
 }
 function EraChart({table}:{table:number[][]}){
  const w=56,max=.6;return <figure className="chart-figure"><svg viewBox="0 0 440 200" className="chart" role="img" aria-label="Share of cases classified D by era, declining after 1999">{table.map((r,i)=>{const p=r[0]/(r[0]+r[1]);const [lo,hi]=wilson(r[0],r[0]+r[1]);const x=30+i*w,y=(v:number)=>170-v/max*150;return <g key={i}><rect x={x} y={y(p)} width={w-18} height={170-y(p)} className="bar"/><line x1={x+(w-18)/2} x2={x+(w-18)/2} y1={y(hi)} y2={y(lo)} className="whisker"/><text x={x+(w-18)/2} y="186" className="chart-label" textAnchor="middle">{historical.periods[i].slice(0,4)}s</text><text x={x+(w-18)/2} y={y(hi)-4} className="chart-label" textAnchor="middle">{Math.round(p*100)}%</text></g>;})}<line x1="24" x2="430" y1="170" y2="170" className="axis"/></svg><figcaption>Share classified D by era, with 95% Wilson intervals. Small early samples (n = 34, 32) have wide intervals.</figcaption></figure>;
@@ -134,7 +139,7 @@ function Sandbox(){
 }
 
 /* ───────────── Evidence Protection & Proof Hypothesis ───────────── */
-export function ProofLab(){
+export function ProofLab({data}:{data?:Snapshot}){
  const [model,setModel]=useState<'six'|'eight'>('six'),[path,setPath]=useState<'technology'|'biology'>('technology');
  const stages=model==='six'?sixStage:eightStage,presets=model==='six'?presets6:presets8;
  const [values,setValues]=useState<number[]>(presets6[1].values);
@@ -154,8 +159,19 @@ export function ProofLab(){
    <p className="small">Raising <b>{stages[lever.index].label}</b> by 10 points changes this scenario most. That identifies a stage worth <em>measuring</em>, not a fact about any case.</p>
    <p className="muted small">P(all stages | an authentic item existed) = P(S) × P(L|S) × … Each factor is conditional on earlier stages, so stages need not be independent. None has been estimated empirically.</p>
   </Panel></div>
+  <ObservedStages rows={data?.tables[LAB]||[]}/>
   <div className="two-columns"><Panel title="Social and institutional hypotheses" eyebrow="HYPOTHESES REQUIRING EVIDENCE"><div className="hypothesis-list">{socialVariables.map(v=><div key={v.name}><h3>{v.name}</h3><p>{v.prediction}</p><p className="muted small">Test: {v.test}</p></div>)}</div><p className="muted small">These are testable hypotheses, not presumed explanations of any case.</p></Panel>
    <Panel title="Roadmap: replacing assumptions with measurements" eyebrow="PRE-SPECIFIED PILOT"><ol className="roadmap"><li><b>Sample.</b> Draw about 100 independently identifiable material-claim cases from official archives, matched with conventionally resolved records.</li><li><b>Code stages.</b> Record each stage as demonstrated, failed after adequate inquiry, restricted, lost or unknown, with exact source and date.</li><li><b>Dual coding.</b> Two blind coders; measure agreement before adjudication.</li><li><b>Estimate.</b> Stage-specific conditional success proportions with intervals and conservative missingness bounds, clustered by source network.</li><li><b>Compare.</b> Pre-specified non-ET control objects; prospective artifacts to measure change.</li></ol><Note>The GEIPAN chi-square result does not evaluate this hypothesis.</Note><More href="/priorities">See related research tasks</More></Panel></div>
   <Panel title="Separate evidence pathways" eyebrow="DISTINCT EXPERIMENTS"><div className="pathways"><div><h3>Observation → instrumentation</h3><p>Independent original reports plus raw, calibrated multisensor data can establish that something objectively unusual happened. On its own it cannot answer the recovery question.</p></div><div><h3>Observation → recovery → object → custody → laboratory</h3><p>Requires a uniquely identified surviving item, an unbroken custody chain and independent, replicated diagnostic results. Unusual composition alone does not establish non-human manufacture.</p></div></div></Panel>
  </>;
+}
+
+function ObservedStages({rows}:{rows:Record<string,string>[]}){
+ const tested=rows.filter(r=>/done/i.test(r['Proof-chain stages']||''));
+ if(!rows.length)return null;
+ return <Panel title="Observed stage outcomes from real cases" eyebrow="FIRST EMPIRICAL STAGE RECORDS · V09" action={<Label kind="real"/>}>
+  <p className="muted small">The scenario above is arithmetic. These are documented outcomes for actual candidates, the kind of records the roadmap needs to replace assumptions. With {tested.length} tested candidate(s), they are case records, not a rate.</p>
+  <div className="table-wrap"><table><thead><tr><th>Candidate</th><th>Stage outcomes</th><th>Laboratory result</th><th>Custody</th><th>Source tier</th></tr></thead><tbody>{rows.map(r=><tr key={r._recordId||r.Candidate}><td><b>{r.Candidate}</b><br/><small>{r.Laboratory}</small></td><td>{r['Proof-chain stages']}</td><td>{r.Result}</td><td>{r.Custody}</td><td><small>{r['Source tier']}</small><br/><SourceLink href={r.Sources}/></td></tr>)}</tbody></table></div>
+  <Note>Both tested magnesium specimens failed at custody (C) and produced terrestrial or inconclusive diagnostics (D). That shows where real chains break; it is not an estimate of how often authentic material would survive.</Note>
+ </Panel>;
 }

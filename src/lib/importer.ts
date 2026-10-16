@@ -50,3 +50,24 @@ export async function importResearch(db:Database,root:string) {
  }
  return {files:files.length,counts:Object.fromEntries(Object.entries(all).filter(([,r])=>r.length).map(([k,r])=>[k,r.length]))};
 }
+// v09+ research extensions: separate releases and collections that never overwrite v08 records.
+// Each file holds {release, method, collections:{Name:[rows]}}; rows keep their original IDs.
+export async function importExtension(db:Database,file:string){
+ const bytes=await readFile(file);const sha=hash(bytes);const data=JSON.parse(bytes.toString('utf8')) as {release:string;method:string;collections:Record<string,ResearchRow[]>};
+ if(!data.release||!data.collections)throw new Error('Not a research extension file');
+ const iid=hash(path.basename(file)+sha);const counts:Record<string,number>={};
+ await db.transaction(async tx=>{
+  const total=Object.values(data.collections).reduce((n,r)=>n+r.length,0);
+  await tx.query('INSERT INTO imports(id,version,filename,sha256,status,limitations,record_count) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT DO NOTHING',[iid,data.release,path.basename(file),sha,'imported',data.method,total]);
+  for(const [collection,rows] of Object.entries(data.collections)){
+   counts[collection]=rows.length;
+   for(const [index,payload] of rows.entries()){
+    const sourceId=`${collection}:${payload.ClaimID||payload.ArtifactID&&`${payload.ArtifactID}-${payload.EventID}`||String(index+1).padStart(4,'0')}`;
+    // Re-importing a corrected file replaces that release's rows; v08 rows are untouched.
+    await tx.query("INSERT INTO records(id,collection,source_id,release,import_id,payload) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(collection,source_id,release) DO UPDATE SET payload=excluded.payload,import_id=excluded.import_id",[`${data.release}:${sourceId}`,collection,sourceId,data.release,iid,JSON.stringify(payload)]);
+   }
+  }
+  await audit(tx,'importer','import-extension',data.release,{file:path.basename(file),sha256:sha,counts});
+ });
+ return {release:data.release,counts};
+}

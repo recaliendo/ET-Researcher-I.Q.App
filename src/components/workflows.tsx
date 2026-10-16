@@ -6,6 +6,7 @@ import type {FeedItem,Snapshot} from './observatory';
 import {Badge,Empty,Fields,More,Note,Panel,RecordList,SectionHeader,SourceLink,download,post} from './ui';
 import {taskStates,type ResearchRow} from '@/lib/research-types';
 import {roadmap,recruitment,guardrails,mars} from '@/lib/handoff';
+import {sprintProgress} from '@/lib/progress';
 
 const date=(s?:string|null)=>s?new Date(s).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'Not stated';
 const time=(s?:string|null)=>s?new Date(s).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}):'Never';
@@ -73,6 +74,7 @@ export function Findings({data}:{data:Snapshot}){
  return <>
   <SectionHeader label="RESEARCH / FINDINGS" title="What the evidence supports." description="Six research questions. Explicit limitations. No shortcut from an unexplained event to an extraordinary origin."/>
   <Note tone="warning">The public audit has not established a complete, independently replicated extraterrestrial technology or biological-material proof chain. This describes the audited subset, not worldwide absence.</Note>
+  <SprintPanel data={data}/>
   <div className="rq-row">{rq.map(r=><a key={r.Question} href={'#'+r.Question} className="rq-pill" onClick={()=>setTab(/BLOCKED|NOT ESTABLISHED/.test(r.State)?'blocked':/SECOND/.test(r.Question)?'secondary':'associations')}><b>{r.Question.replace('SECONDARY ','2° ')}</b><span className={/BLOCKED|NOT/.test(r.State)?'amber':'green'}>{r.State}</span></a>)}</div>
   <div className="tab-list" role="tablist">{tabs.map(([id,l])=><button key={id} role="tab" aria-selected={tab===id} className={tab===id?'selected':''} onClick={()=>setTab(id)}>{l}</button>)}</div>
   <div role="tabpanel">{rq.length||tab==='hypotheses'?content[tab]:<Empty>Sign in to view imported research findings.</Empty>}</div>
@@ -210,4 +212,15 @@ export function MarsTrack(){
   <div className="two-columns"><Panel title="Planned research sequence" eyebrow="FROM PROJECT CONVERSATIONS"><ol className="roadmap">{mars.sequence.map(x=><li key={x.step}><b>{x.step}.</b> {x.detail} <Badge>Planned · no preserved output</Badge></li>)}</ol></Panel>
    <Panel title="Next decisive milestones" eyebrow="OPEN REQUIREMENTS"><ul className="plain-list">{mars.open.map(x=><li key={x}>{x}</li>)}</ul><Note>No biological origin or new discovery may be claimed without discriminating evidence.</Note></Panel></div>
  </>;
+}
+
+/* ───────────── Progress since v0.8 (v09 research sprint) ───────────── */
+export function SprintPanel({data,compact}:{data:Snapshot;compact?:boolean}){
+ const p=sprintProgress(data.tables);
+ if(!p.available)return null;
+ return <Panel title="Progress since v0.8" eyebrow="V09 RESEARCH SPRINT · AI-EXTRACTED, AWAITING HUMAN REVIEW" action={<Badge tone="blue">Statuses unchanged</Badge>}>
+  <p className="muted small">Research-question states below are the v0.8 states. This sprint retrieved public sources and extracted cited facts; it moves the work toward a valid test without claiming the test has been passed.</p>
+  <div className="sprint-grid">{p.items.filter(i=>!compact||i.moved||i.rq==='RQ1').map(i=><article key={i.rq} className={'sprint-item '+(i.moved?'moved':'')}><div className="feed-meta"><b>{i.rq}</b><Badge tone={i.moved?'green':'neutral'}>{i.moved?'Progress':'No change'}</Badge></div><h3>{i.headline}</h3>{!compact&&<p className="small">{i.detail}</p>}<p className="muted small"><b>Still needed:</b> {i.remaining}</p></article>)}</div>
+  <More href="/methodology?collection=Primary_Source_Extraction_v09">Inspect every extracted value and its source</More>
+ </Panel>;
 }

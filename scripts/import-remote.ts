@@ -3,7 +3,8 @@
 import {createInterface} from 'node:readline';
 import {Writable} from 'node:stream';
 import {connect} from '../src/lib/db';
-import {importResearch} from '../src/lib/importer';
+import {importResearch,importExtension} from '../src/lib/importer';
+import {existsSync} from 'node:fs';
 
 function askHidden(question:string){
  let muted=false;
@@ -27,6 +28,8 @@ async function main(){
  try{
   const r=await importResearch(db,pkg);
   console.log(`\nSUCCESS: ${r.files} files verified, ${Object.keys(r.counts).length} tables, ${r.counts.Events} core cases, ${r.counts.Witnesses} witnesses.`);
+  const ext='private/research_extractions_v09.json';
+  if(existsSync(ext)){const e=await importExtension(db,ext);console.log(`SUCCESS: research extension ${e.release} loaded (${Object.entries(e.counts).map(([k,v])=>`${k}: ${v}`).join(', ')}).`);}
   console.log('Now remove your IP address from the database access-control list in Render.');
  }finally{await db.close();}
 }
