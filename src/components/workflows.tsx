@@ -188,7 +188,7 @@ function PublicationControl({data,reload}:{data:Snapshot;reload:()=>void}){
  useEffect(()=>{if(!confirming&&!busy)setDraft(new Set(current));},[data.publication]);
  const toPublish=all.filter(c=>draft.has(c)&&!current.has(c)),toHide=all.filter(c=>!draft.has(c)&&current.has(c));
  const toggle=(c:string)=>{const n=new Set(draft);n.has(c)?n.delete(c):n.add(c);setDraft(n);setConfirming(false);};
- async function apply(){setBusy(true);setMsg('');try{await post('publish-set',{public:[...draft]});setConfirming(false);setMsg(`Saved. ${draft.size} collection(s) are public.`);reload();}catch(e){setMsg(String(e));}finally{setBusy(false);}}
+ async function apply(){setBusy(true);setMsg('');try{await post('publish-set',{public:[...draft],expected:[...current]});setConfirming(false);setMsg(`Saved. ${draft.size} collection(s) are public.`);reload();}catch(e){setMsg(String(e));}finally{setBusy(false);}}
  return <>
   <p className="small"><b>{current.size}</b> of {all.length} collections are public now. Tick the ones that should be public, review the changes, then confirm. Nothing changes until you confirm.</p>
   <div className="button-row"><button className="button" onClick={()=>{setDraft(new Set(lowRiskCollections.filter(c=>all.includes(c))));setConfirming(false);}}>Select only the 13 low-risk collections</button><button className="button" onClick={()=>{setDraft(new Set());setConfirming(false);}}>Make everything private</button><button className="button" onClick={()=>{setDraft(new Set(current));setConfirming(false);}}>Discard my changes</button></div>
