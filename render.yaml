@@ -22,6 +22,9 @@ services:
         generateValue: true
       - key: CRON_TOKEN
         generateValue: true
+      # Signs session cookies. Rotating it signs everyone out.
+      - key: SESSION_SECRET
+        generateValue: true
       # Single instance: the in-process scheduler handles ingestion.
       - key: ET_SCHEDULER_MINUTES
         value: "15"
