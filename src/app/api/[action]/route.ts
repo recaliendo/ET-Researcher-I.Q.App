@@ -55,6 +55,12 @@ export async function POST(req:Request,{params}:Context){try{
  }
  if(action==='provider'){requireRole(req,'admin');const b=z.object({id:z.string(),enabled:z.boolean(),cadence:z.number().int().min(60).max(10080)}).parse(body);await db.query('UPDATE providers SET enabled=$2,cadence_minutes=$3 WHERE id=$1',[b.id,b.enabled,b.cadence]);await audit(db,'admin','provider-config',b.id,b);return json({ok:true});}
  if(action==='publish'){const role=requireRole(req,'admin');const b=z.object({collection:z.string().regex(/^[A-Za-z0-9_]{1,80}$/),publication:z.enum(['public','private'])}).parse(body);await db.transaction(async tx=>{const r=await tx.query('UPDATE records SET publication=$2 WHERE collection=$1 RETURNING id',[b.collection,b.publication]);if(!r.rows.length)throw new Error('Collection not found');await audit(tx,role,'publication-change',b.collection,{...b,records:r.rows.length});});return json({ok:true});}
+ if(action==='publish-set'){const role=requireRole(req,'admin');const b=z.object({public:z.array(z.string().regex(/^[A-Za-z0-9_]{1,80}$/)).max(200)}).parse(body);
+  const result=await db.transaction(async tx=>{const known=new Set((await tx.query<{collection:string}>('SELECT DISTINCT collection FROM records')).rows.map(r=>r.collection));const unknown=b.public.filter(c=>!known.has(c));if(unknown.length)throw new Error('Unknown collection: '+unknown.join(', '));
+   const before=(await tx.query<{collection:string}>("SELECT DISTINCT collection FROM records WHERE publication='public' ORDER BY 1")).rows.map(r=>r.collection);
+   await tx.query("UPDATE records SET publication=CASE WHEN collection = ANY($1::text[]) THEN 'public' ELSE 'private' END",[b.public]);
+   await audit(tx,role,'publication-set','records',{before,after:[...b.public].sort()});return {public:b.public.length};});
+  return json({ok:true,...result});}
  if(action==='subscribe'){const b=z.object({subscriber:z.string().uuid(),category:z.enum(['all','official reports','hearings','physical evidence','corrections'])}).parse(body);await db.query('INSERT INTO subscriptions(id,subscriber_hash,category) VALUES($1,$2,$3) ON CONFLICT DO NOTHING',[crypto.randomUUID(),hash(b.subscriber),b.category]);return json({ok:true,delivery:'In-app notification inbox. No email delivery configured.'});}
  return json({error:'Not found'},404);
  }catch(e){return fail(e);}}
